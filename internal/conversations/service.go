@@ -1,33 +1,34 @@
 package conversations
 
 import (
-	//"errors"
 	//"fmt"
 	core "github.com/miphilipp/devchat-server/internal"
 )
 
+// Service defines all use cases related to conversations.
+// All users that are passed via an argument labeled userCtx are expected to be logged in.
 type Service interface {
 	// Internal
 	ListConversations() ([]core.Conversation, error)
 
 	// conversation member only access
-	LeaveConversation(userID, conversationID, newAdmin int) error
+	LeaveConversation(userCtx, conversationID, newAdmin int) error
 	ListUsersOfConversation(userCtx int, conversationID int) ([]core.UserInConversation, error)
 
 	// Admin only access
 	InviteUser(userCtx, recipient, conversationID int) error
 	RevokeInvitation(userCtx, userID, conversationID int) error
 	RemoveUserFromConversation(userCtx, userID, conversationID int) error
-	DeleteConversation(userID, conversationID int) error
-	SetAdminStatus(userID, newAdmin, conversationID int, status bool) error
+	DeleteConversation(userCtx, conversationID int) error
+	SetAdminStatus(userCtx, newAdmin, conversationID int, status bool) error
 	EditConversation(userCtx int, conversation core.Conversation) (core.Conversation, error)
 
 	// Restricted access
-	ListConversationsForUser(user int) ([]core.Conversation, error)
-	ListInvitations(userID int) ([]core.Invitation, error)
-	DenieInvitation(userID, conversationID int) error
-	JoinConversation(userID, conversationID int) (int, error)
-	CreateConversation(userID int, title, repoURL string, initialMembers []int) (core.Conversation, error)
+	ListConversationsForUser(userCtx int) ([]core.Conversation, error)
+	ListInvitations(userCtx int) ([]core.Invitation, error)
+	DenieInvitation(userCtx, conversationID int) error
+	JoinConversation(userCtx, conversationID int) (int, error)
+	CreateConversation(userCtx int, title, repoURL string, initialMembers []int) (core.Conversation, error)
 }
 
 type service struct {
@@ -52,6 +53,15 @@ func (s *service) RevokeInvitation(userCtx, userID, conversationID int) error {
 	}
 
 	if isAdmin {
+		isMember, err := s.conversationRepo.IsUserInConversation(userID, conversationID)
+		if err != nil {
+			return err
+		}
+
+		if isMember {
+			return core.ErrRessourceDoesNotExist
+		}
+
 		err = s.conversationRepo.RemoveGroupAssociation(userID, conversationID)
 		if err != nil {
 			return err
@@ -63,8 +73,17 @@ func (s *service) RevokeInvitation(userCtx, userID, conversationID int) error {
 	return nil
 }
 
-func (s *service) DenieInvitation(userID int, conversationID int) error {
-	return s.conversationRepo.RemoveGroupAssociation(userID, conversationID)
+func (s *service) DenieInvitation(userCtx int, conversationID int) error {
+	isMember, err := s.conversationRepo.IsUserInConversation(userCtx, conversationID)
+	if err != nil {
+		return err
+	}
+
+	if isMember {
+		return core.ErrRessourceDoesNotExist
+	}
+
+	return s.conversationRepo.RemoveGroupAssociation(userCtx, conversationID)
 }
 
 func (s *service) RemoveUserFromConversation(userCtx, userID, conversationID int) error {
@@ -85,8 +104,8 @@ func (s *service) RemoveUserFromConversation(userCtx, userID, conversationID int
 	return nil
 }
 
-func (s *service) DeleteConversation(userID int, conversationID int) error {
-	isAdmin, err := s.conversationRepo.IsUserAdminOfConveration(userID, conversationID)
+func (s *service) DeleteConversation(userCtx int, conversationID int) error {
+	isAdmin, err := s.conversationRepo.IsUserAdminOfConveration(userCtx, conversationID)
 	if err != nil {
 		return err
 	}
@@ -103,15 +122,15 @@ func (s *service) DeleteConversation(userID int, conversationID int) error {
 	return nil
 }
 
-func (s *service) JoinConversation(userID int, conversationID int) (int, error) {
-	return s.conversationRepo.MarkAsJoined(userID, conversationID)
+func (s *service) JoinConversation(userCtx int, conversationID int) (int, error) {
+	return s.conversationRepo.MarkAsJoined(userCtx, conversationID)
 }
 
-func (s *service) ListInvitations(userID int) ([]core.Invitation, error) {
-	return s.conversationRepo.FindInvitations(userID)
+func (s *service) ListInvitations(userCtx int) ([]core.Invitation, error) {
+	return s.conversationRepo.FindInvitations(userCtx)
 }
 
-func (s *service) CreateConversation(userID int, title, repoURL string, initialMembers []int) (core.Conversation, error) {
+func (s *service) CreateConversation(userCtx int, title, repoURL string, initialMembers []int) (core.Conversation, error) {
 	if title == "" {
 		return core.Conversation{}, core.NewInvalidValueError("title")
 	}
@@ -121,11 +140,11 @@ func (s *service) CreateConversation(userID int, title, repoURL string, initialM
 		Repourl: repoURL,
 		ID: -1,
 	}
-	return s.conversationRepo.CreateConversation(userID, conversation, initialMembers)
+	return s.conversationRepo.CreateConversation(userCtx, conversation, initialMembers)
 }
 
-func (s *service) ListConversationsForUser(user int) ([]core.Conversation, error) {
-	return s.conversationRepo.FindConversationsForUser(user)
+func (s *service) ListConversationsForUser(userCtx int) ([]core.Conversation, error) {
+	return s.conversationRepo.FindConversationsForUser(userCtx)
 }
 
 func (s *service) ListConversations() ([]core.Conversation, error) {
@@ -143,13 +162,21 @@ func (s *service) InviteUser(userCtx, recipient, conversationID int) error {
 		return core.ErrAccessDenied
 	}
 
+	isMember, err := s.conversationRepo.IsUserInConversation(recipient, conversationID)
+	if err != nil {
+		return err
+	}
+
+	if isMember {
+		return core.ErrAlreadyExists
+	}
 
 	return s.conversationRepo.MarkAsInvited(recipient, conversationID)
 }
 
 // MakeAdmin makes the passed user into an admin for a given conversation.
-func (s *service) SetAdminStatus(userID, newAdmin, conversationID int, status bool) error {
-	isAdmin, err := s.conversationRepo.IsUserAdminOfConveration(userID, conversationID)
+func (s *service) SetAdminStatus(userCtx, newAdmin, conversationID int, status bool) error {
+	isAdmin, err := s.conversationRepo.IsUserAdminOfConveration(userCtx, conversationID)
 	if err != nil {
 		return err
 	}
@@ -219,8 +246,8 @@ func (s *service) ListUsersOfConversation(userCtx int, conversationID int) ([]co
 }
 
 // LeaveConversation removes a user from a conversation
-func (s *service) LeaveConversation(userID, conversationID, newAdmin int) error {
-	isAdmin, err := s.conversationRepo.IsUserAdminOfConveration(userID, conversationID)
+func (s *service) LeaveConversation(userCtx, conversationID, newAdmin int) error {
+	isAdmin, err := s.conversationRepo.IsUserAdminOfConveration(userCtx, conversationID)
 	if err != nil {
 		return err
 	}
@@ -235,11 +262,11 @@ func (s *service) LeaveConversation(userID, conversationID, newAdmin int) error 
 	}
 
 	if isAdmin && numberOfAdmins == 1 {
-		err = s.SetAdminStatus(userID, newAdmin, conversationID, true)
+		err = s.SetAdminStatus(userCtx, newAdmin, conversationID, true)
 		if err != nil {
 			return err
 		}
 	}
 
-	return s.conversationRepo.SetAsLeft(userID, conversationID)
+	return s.conversationRepo.SetAsLeft(userCtx, conversationID)
 }
