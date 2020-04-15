@@ -159,15 +159,12 @@ func (s *Server) cleanupAfterClient(conn *websocket.Conn, client *client)  {
 		delete(clients.m, client.id)
 		clients.Unlock()
 		s.removeClientFromRooms(client)
-		client.Disconnect <- 1000 // Code spielt hier keine Rolle
+		client.Disconnect <- 1000 // Code is not relevant
 		// TODO: User auf offline schalten
 	}
 }
 
 func (s *Server) sendLoop(client *client)  {
-	// ticker := time.NewTicker(3 * time.Second)
-	// defer ticker.Stop()
-
 	for {
 		select {
 		case msg := <-client.Send:
