@@ -80,7 +80,17 @@ AS $$
 DECLARE v_hasleft Boolean default false;
 DECLARE v_colorIndex INTEGER;
 DECLARE v_res_colorIndex integer;
+DECLARE v_exists Boolean;
 begin
+  select exists(
+    select 1 from group_association 
+    where conversationId = v_conversationId and userid = v_userid
+  ) into v_exists
+
+  if v_exists = false THEN
+    RAISE EXCEPTION 'Not invited'
+  end if;
+
   select hasleft 
   from group_association
   where userid = v_userid and conversationid = v_conversationId
@@ -158,7 +168,7 @@ begin
   END LOOP;
 
   UPDATE public.group_association
-  SET isadmin = false
+  SET isadmin = false, hasleft = true
   WHERE userid = v_userid AND isadmin = true;
 end;
 $$ language PLpgSQL;
@@ -205,6 +215,18 @@ RETURN NULL;
 END;
 $BODY$;
 
+CREATE  or replace FUNCTION public.calculateUnreadMessages(IN v_conversationid integer, IN v_userid integer)
+    RETURNS integer
+    LANGUAGE 'plpgsql'
+AS $BODY$
+BEGIN
+SELECT count(*) FROM message_status
+WHERE message_status.hasread = false and 
+	userid = v_userid and 
+	conversationid = v_conversationid;
+END
+	$BODY$;
+
 
 CREATE TRIGGER "afterSetOnline"
 AFTER UPDATE OF isonline
@@ -212,3 +234,25 @@ ON public."user"
 FOR EACH ROW
 WHEN (NEW.isonline = true)
 EXECUTE PROCEDURE public."updateLastOnline"();
+
+
+create or replace procedure inviteUser(
+    in v_userid integer, in v_conversationId integer)
+AS $$
+DECLARE v_exists Boolean;
+begin
+  select exists(
+    select 1 from group_association 
+    where conversationId = v_conversationId and userid = v_userid
+  ) into v_exists
+
+  if v_exists = true THEN
+    UPDATE group_association
+		SET hasleft = false, joined = null
+		WHERE userid = v_userid AND conversationid = v_conversationId;
+  else
+    INSERT INTO group_association (isadmin, userid, conversationid, joined, colorindex) 
+		VALUES (false, v_userid, v_conversationId, NULL, -1);
+  end if;
+end;
+$$ language PLpgSQL;
