@@ -28,10 +28,14 @@ var matcher = language.NewMatcher([]language.Tag{
     language.English,
 })
 
+type ServerConfig struct {
+	Addr 			string 
+	IndexFileName	string
+	AssetsFolder	string
+}
+
 type Webserver struct {
-	staticPath 			string
-	indexPath  			string
-	addr       			string
+	config				ServerConfig
 	router     			*mux.Router
 	Server     			*http.Server
 
@@ -55,14 +59,14 @@ func (s Webserver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// prepend the path with the path to the static directory
-	path = filepath.Join(s.staticPath, path)
+	path = filepath.Join(s.config.AssetsFolder, path)
 
 	// check whether a file exists at the given path
 	_, err = os.Stat(path)
 	if os.IsNotExist(err) {
 		// file does not exist, serve index.html
 		if containsPath(s.actualWebpages, r.URL.Path) {
-			http.ServeFile(w, r, filepath.Join(s.staticPath, s.indexPath))
+			http.ServeFile(w, r, filepath.Join(s.config.AssetsFolder, s.config.IndexFileName))
 		} else {
 			writeJSONError(w, core.ErrRessourceDoesNotExist, http.StatusNotFound)
 		}
@@ -76,7 +80,7 @@ func (s Webserver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// otherwise, use http.FileServer to serve the static dir
-	http.FileServer(http.Dir(s.staticPath)).ServeHTTP(w, r)
+	http.FileServer(http.Dir(s.config.AssetsFolder)).ServeHTTP(w, r)
 }
 
 func limitSize(next http.Handler) http.Handler {
@@ -97,9 +101,7 @@ func parseLanguage(next http.Handler) http.Handler {
 
 // New erstellt eine neue Instanz vom Typ Webserver
 func New(
-	addr string, 
-	indexPath string, 
-	staticPath string, 
+	cfg ServerConfig,
 	userService user.Service, 
 	cService conversations.Service,
 	mService messaging.Service,
@@ -111,15 +113,13 @@ func New(
 	router := mux.NewRouter()
 	srv := &http.Server{
 		Handler:      router,
-		Addr:         addr,
+		Addr:         cfg.Addr,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
 
 	app := &Webserver{
-		addr:       addr,
-		indexPath:  indexPath,
-		staticPath: staticPath,
+		config: cfg,
 		router:     router,
 		Server:     srv,
 		userService:	userService,

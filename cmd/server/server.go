@@ -118,9 +118,7 @@ func main() {
 	}
 
 	app := server.New(
-		cfg.Server.Addr, 
-		cfg.Server.IndexFileName, 
-		cfg.Server.AssetsFolder, 
+		server.ServerConfig{cfg.Server.Addr, cfg.Server.IndexFileName, cfg.Server.AssetsFolder},
 		userService, 
 		conversationService, 
 		messagingService,

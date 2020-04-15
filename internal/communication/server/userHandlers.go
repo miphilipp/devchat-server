@@ -35,8 +35,8 @@ func (s *Webserver) serveUserAvatar(writer http.ResponseWriter, request *http.Re
 		nodefault = false
 	}
 
-	defaultAvatarPath := s.staticPath + "/../avatars/default.png"
-	path := makeAvatarFileName(userID, s.staticPath)
+	defaultAvatarPath := s.config.AssetsFolder + "/../avatars/default.png"
+	path := makeAvatarFileName(userID, s.config.AssetsFolder)
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		if nodefault {
@@ -311,7 +311,7 @@ func (s *Webserver) deleteUserAccount(writer http.ResponseWriter, request *http.
 		return
 	}
 
-	s.userService.DeleteAvatar(makeAvatarFileName(userID, s.staticPath))
+	s.userService.DeleteAvatar(makeAvatarFileName(userID, s.config.AssetsFolder))
 
 	s.socket.DisconnectClient(userID)
 	s.session.InvlidateAllTokens(user.Name)
@@ -347,7 +347,7 @@ func (s *Webserver) postNewAvatar(writer http.ResponseWriter, request *http.Requ
 	buffer := make([]byte, header.Size)
 	buf.Read(buffer)
 
-	err = s.userService.SaveAvatar(makeAvatarFileName(userID, s.staticPath), contentType, buffer)
+	err = s.userService.SaveAvatar(makeAvatarFileName(userID, s.config.AssetsFolder), contentType, buffer)
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
@@ -360,7 +360,7 @@ func (s *Webserver) postNewAvatar(writer http.ResponseWriter, request *http.Requ
 
 func (s *Webserver) deleteAvatar(writer http.ResponseWriter, request *http.Request) {
 	userID := request.Context().Value("UserID").(int)
-	err := s.userService.DeleteAvatar(makeAvatarFileName(userID, s.staticPath))
+	err := s.userService.DeleteAvatar(makeAvatarFileName(userID, s.config.AssetsFolder))
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
