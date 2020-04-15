@@ -86,7 +86,7 @@ CREATE TABLE public.code_message (
     language character varying(20) NOT NULL REFERENCES public.programming_language (name) MATCH SIMPLE,
     code text NOT NULL,
     title character varying(40) NOT NULL,
-    lockedby bigint REFERENCES public.user (id) MATCH SIMPLE      
+    lockedby bigint REFERENCES public.user (id) on delete set null MATCH SIMPLE      
 );
 
 -- DROP INDEX public.code_message_language_idx;
@@ -148,7 +148,7 @@ CREATE OR REPLACE VIEW public.v_conversation
           GROUP BY message_status.conversationid, message_status.userid) s ON s.conversationid = c.id AND s.userid = g.userid
   WHERE g.joined IS NOT NULL;
 
-CREATE OR REPLACE VIEW public.v_joined_members
+CREATE OR REPLACE VIEW public.v_joined_member
  AS
  SELECT g.isadmin,
     g.userid,
@@ -159,7 +159,7 @@ CREATE OR REPLACE VIEW public.v_joined_members
      JOIN "user" u ON u.id = g.userid
   WHERE g.hasleft = false AND g.joined IS NOT NULL AND u.isdeleted = false;
 
-CREATE OR REPLACE VIEW public.v_admins
+CREATE OR REPLACE VIEW public.v_admin
  AS
  SELECT group_association.isadmin,
     group_association.userid,
@@ -168,6 +168,19 @@ CREATE OR REPLACE VIEW public.v_admins
     group_association.colorindex
    FROM group_association
   WHERE group_association.isadmin = true AND group_association.joined IS NOT NULL;
+
+CREATE OR REPLACE VIEW public.v_every_member
+AS
+ SELECT u.name,
+    g.userid AS id,
+    g.isadmin,
+    g.colorindex,
+    g.joined IS NOT NULL AS hasjoined,
+    g.hasleft,
+    u.isdeleted,
+    g.conversationid
+   FROM group_association g
+     JOIN "user" u ON u.id = g.userid;
 
 
 CREATE EXTENSION pgcrypto;

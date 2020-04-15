@@ -14,8 +14,9 @@ type conversationRepository struct {
 func (r *conversationRepository) FindConversationsForUser(user int) ([]core.Conversation, error) {
 	conversations := make([]core.Conversation, 0, 2)
 	_, err := r.db.Query(&conversations, `
-			SELECT id, title, repourl, unreadMessagesCount
-			FROM v_conversation
+			SELECT id, title, repourl, calculateUnreadaMessages(id, ?) as unreadMessagesCount
+			FROM conversation c
+			JOIN group_association g on c.id = g.conversationid
 			WHERE userid = ?;`, user)
 
 	return conversations, core.NewDataBaseError(err)
@@ -43,11 +44,11 @@ func (r *conversationRepository) FindConversations() ([]core.Conversation, error
 }
 
 // CreateConversation inserts a conversation into the database
-func (r *conversationRepository) CreateConversation(userID int, c core.Conversation, initialMembers []int) (core.Conversation, error) {
+func (r *conversationRepository) CreateConversation(userCtx int, c core.Conversation, initialMembers []int) (core.Conversation, error) {
 	var insertedID = -1
 	emptyConverstion := core.Conversation{}
 
-	_, err := callFunction(r.db, "createConversation", &insertedID, userID, c.Title, c.Repourl, pg.Array(initialMembers))
+	_, err := callFunction(r.db, "createConversation", &insertedID, userCtx, c.Title, c.Repourl, pg.Array(initialMembers))
 	if err != nil {
 		return emptyConverstion, err
 	}
@@ -73,7 +74,7 @@ func (r *conversationRepository) DeleteConversation(id int) error {
 	return nil
 }
 
-func (r *conversationRepository) FindInvitations(userid int) ([]core.Invitation, error) {
+func (r *conversationRepository) FindInvitations(userCtx int) ([]core.Invitation, error) {
 	model := []struct {
 		ConversationID    int	 `pg:"conversationid"`
 		ConversationTitle string `pg:"conversationtitle"`
@@ -82,7 +83,7 @@ func (r *conversationRepository) FindInvitations(userid int) ([]core.Invitation,
 
 	_, err := r.db.Query(&model,
 		`SELECT conversationId, conversationTitle, recipient FROM v_invitation WHERE recipient = ?;`, 
-	userid)
+	userCtx)
 	if err != nil {
 		return nil, core.NewDataBaseError(err)
 	}
@@ -98,21 +99,7 @@ func (r *conversationRepository) FindInvitations(userid int) ([]core.Invitation,
 }
 
 func (r *conversationRepository) MarkAsInvited(userID int, conversationID int) error {
-	_, err := r.db.Exec(
-		`INSERT INTO group_association (isadmin, userid, conversationid, joined, colorindex) 
-		 VALUES (false, ?, ?, NULL, ?);`, userID, conversationID, -1)
-	if err != nil {
-		pgErr, ok := err.(pg.Error)
-		if ok && pgErr.IntegrityViolation() {
-			_, err := r.db.Exec(
-				`UPDATE group_association
-				SET hasleft = false, joined = null
-				WHERE userid = ? AND conversationid = ?;`, userID, conversationID)
-
-			return core.NewDataBaseError(err)
-		}
-	}
-
+	_, err := callStoredProcedure(r.db, "inviteUser", userID, conversationID)
 	return core.NewDataBaseError(err)
 }
 
@@ -177,17 +164,9 @@ func (r *conversationRepository) SetMetaDataOfConversation(conversation core.Con
 func (r *conversationRepository) GetUsersInConversation(conversationID int) ([]core.UserInConversation, error) {
 	users := make([]core.UserInConversation, 0, 5)
 	_, err := r.db.Query(&users,
-		`SELECT 
-			name, 
-			userid as "id", 
-			g.isadmin, 
-			g.colorIndex, 
-			g.joined IS NOT NULL as hasjoined, 
-			hasleft,
-			isdeleted
-		FROM group_association as g
-		JOIN public.user AS u ON u.id = g.userid
-		WHERE g.conversationId = ?;`,
+		`SELECT name, id, isadmin, colorIndex, hasjoined, hasleft, isdeleted
+		FROM v_every_member
+		WHERE conversationId = ?;`,
 		conversationID)
 	if err != nil {
 		return nil, core.NewDataBaseError(err)
@@ -199,7 +178,7 @@ func (r *conversationRepository) GetUsersInConversation(conversationID int) ([]c
 func (r *conversationRepository) IsUserInConversation(userID int, conversationID int) (bool, error) {
 	var res int
 	_, err := r.db.Query(&res,
-		`SELECT COUNT(*) FROM v_joined_members WHERE userid = ? AND conversationId = ?;`, 
+		`SELECT COUNT(*) FROM v_joined_member WHERE userid = ? AND conversationId = ?;`, 
 	userID, conversationID)
 	if err != nil {
 		return false, core.NewDataBaseError(err)
@@ -211,7 +190,7 @@ func (r *conversationRepository) IsUserInConversation(userID int, conversationID
 func (r *conversationRepository) IsUserAdminOfConveration(userID int, conversationID int) (bool, error) {
 	var res int
 	_, err := r.db.Query(&res,
-		`SELECT COUNT(*) FROM v_admins WHERE userid = ? AND conversationId = ?;`, 
+		`SELECT COUNT(*) FROM v_admin WHERE userid = ? AND conversationId = ?;`, 
 	userID, conversationID)
 	if err != nil {
 		return false, core.NewDataBaseError(err)
@@ -223,7 +202,7 @@ func (r *conversationRepository) IsUserAdminOfConveration(userID int, conversati
 func (r *conversationRepository) CountAdminsOfConversation(conversationID int) (int, error)  {
 	var numberOfAdmins int
 	_, err := r.db.QueryOne(&numberOfAdmins,
-		`SELECT count(*) FROM v_admins WHERE conversationId = ?;`,
+		`SELECT count(*) FROM v_admin WHERE conversationId = ?;`,
 		conversationID)
 	if err != nil {
 		return 0, core.NewDataBaseError(err)
