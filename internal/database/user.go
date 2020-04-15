@@ -19,7 +19,7 @@ type userRepository struct {
 func (r *userRepository) CompareCredentials(userID int, password string) (int, error) {
 	var id int
 	_, err := r.db.QueryOne(&id,
-		"SELECT id FROM public.user WHERE id = ? AND password = crypt(?, password);",
+		"SELECT id FROM public.user WHERE id = ? AND password = crypt(?, password) AND isdeleted = false;",
 		userID, password)
 
 	if errors.Is(err, pg.ErrNoRows)  {
@@ -133,7 +133,7 @@ func (r *userRepository) CreateRecoverID(emailAddress string) (uuid.UUID, error)
 	_, err := r.db.QueryOne(&updatedUUID,
 		`UPDATE public.user 
 		 SET recovery_uuid = uuid_generate_v4(), recovery_uuid_issue_date = current_timestamp at time zone 'utc'
-		 WHERE email = ?
+		 WHERE email = ? AND isdeleted = false
 		 RETURNING recovery_uuid;`, emailAddress)
 
 	if errors.Is(err, pg.ErrNoRows)  {
@@ -150,7 +150,7 @@ func (r *userRepository) CreateRecoverID(emailAddress string) (uuid.UUID, error)
 func (r *userRepository) SetPassword(user int, newPassword string) error {
 	res, err := r.db.Exec(
 		`UPDATE public.user SET password = crypt(?, gen_salt('bf'))
-		 WHERE id = ?;`, newPassword, user)
+		 WHERE id = ? AND isdeleted = false;`, newPassword, user)
 	if err != nil {
 		return core.NewDataBaseError(err)
 	}
@@ -189,7 +189,7 @@ func (r *userRepository) SetConfirmationIDToNULL(token string) (string, error)  
 	var username string
 	_, err := r.db.QueryOne(&username,
 		`UPDATE public.user SET confirmation_uuid = NULL
-		 WHERE confirmation_uuid = ?
+		 WHERE confirmation_uuid = ? AND isdeleted = false
 		 RETURNING name;`, token)
 	if err != nil {
 		return "", core.NewDataBaseError(err)
@@ -248,7 +248,7 @@ func (r *userRepository) LockUser(userID int) error {
 	res, err := r.db.Exec(
 		`UPDATE public.user 
 		SET failedLoginAttempts = 0, lockedOutSince = current_timestamp at time zone 'utc' 
-		WHERE id = ?;`,
+		WHERE id = ? AND isdeleted = false;`,
 		userID)
 	if err != nil {
 		return core.NewDataBaseError(err)
@@ -265,7 +265,7 @@ func (r *userRepository) UnlockUser(userID int) error {
 	res, err := r.db.Exec(
 		`UPDATE public.user 
 		SET lockedOutSince = NULL, failedLoginAttempts = 0 
-		WHERE id = ?;`,
+		WHERE id = ? AND isdeleted = false;`,
 		userID)
 	if err != nil {
 		return core.NewDataBaseError(err)
@@ -282,7 +282,7 @@ func (r *userRepository) UpdateOnlineState(userID int, state bool) error  {
 	res, err := r.db.Exec(
 		`UPDATE public.user 
 		SET isonline = ? 
-		WHERE id = ?;`,
+		WHERE id = ? AND isdeleted = false;`,
 		userID, state)
 	if err != nil {
 		return core.NewDataBaseError(err)
