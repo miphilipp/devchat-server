@@ -85,6 +85,10 @@ func (s *service) AuthenticateUser(username, password string) (int, error) {
 		return -1, core.ErrUserDoesNotExist
 	}
 
+	if user.ConfirmationUUID != uuid.Nil {
+		return -1, core.ErrAccountNotConfirmed
+	}
+
 	if !user.LockedOutSince.IsZero() && user.LockedOutSince.Add(time.Minute * 5).After(time.Now().UTC()) {
 		return -1, core.ErrLockedOut
 	}
