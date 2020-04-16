@@ -265,7 +265,12 @@ func (s *service) GetCodeOfMessage(userCtx, conversationID, messageID int) (stri
 		return "", core.ErrAccessDenied
 	}
 
-	return s.messageRepo.SelectCodeOfMessage(conversationID, messageID)
+	message, err := s.messageRepo.FindCodeMessageForID(messageID, conversationID)
+	if err != nil {
+		return "", err
+	}
+
+	return message.Code, nil
 }
 
 func (s *service) GetMessage(userCtx, conversationID, messageID int) (interface{}, error) {

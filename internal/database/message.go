@@ -278,24 +278,6 @@ func NewMessageRepository(dbSession *pg.DB) core.MessageRepo {
 	return &messageRepository{db: dbSession}
 }
 
-func (r *messageRepository) SelectCodeOfMessage(conversationID int, messageID int) (string, error) {
-	var code string
-	_, err := r.db.QueryOne(&code,
-		`SELECT m.code
-		FROM code_message m 
-		JOIN conversation c ON c.id = m.conversationid
-		WHERE m.id = ? AND c.id = ?;`, messageID, conversationID)
-	if err != nil && err == pg.ErrNoRows {
-		return "", core.ErrRessourceDoesNotExist
-	}
-
-	if err != nil {
-		return "", core.NewDataBaseError(err)
-	}
-
-	return code, nil
-}
-
 func (r *messageRepository) SetLockedSateForCodeMessage(messageID, lockingUserID int) error  {
 	var id interface{}
 	if lockingUserID > 0 {

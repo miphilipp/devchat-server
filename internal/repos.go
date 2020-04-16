@@ -73,5 +73,4 @@ type MessageRepo interface {
 	FindTextMessageForID(messageID, conversationID int) (TextMessage, error)
 	FindMessageStubForConversation(conversationID, messageID int) (Message, error)
 	FindAllProgrammingLanguages() ([]ProgrammingLanguage, error)
-	SelectCodeOfMessage(conversationID, messageID int) (string, error)
 }
