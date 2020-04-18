@@ -1,19 +1,20 @@
 package websocket
 
 import (
-	"strings"
-	"strconv"
-	"math"
 	"bytes"
+	"math"
+	"strconv"
+	"strings"
+
 	"github.com/throttled/throttled"
 
 	core "github.com/miphilipp/devchat-server/internal"
 )
 
 type WebsocketVaryBy struct {
-    RemoteAddr bool
-	Method bool
-	Ressource bool
+	RemoteAddr bool
+	Method     bool
+	Ressource  bool
 }
 
 // Key returns the key for this request based on the criteria defined by the VaryBy struct.
@@ -46,13 +47,13 @@ func (vb *WebsocketVaryBy) Key(method int, ressource string, remoteAddr string) 
 
 type WebsocketRateLimiter struct {
 	RateLimiter throttled.RateLimiter
-	VaryBy interface {
+	VaryBy      interface {
 		Key(method int, ressource string, remoteAddr string) string
 	}
 }
 
 func newWebsocketRateLimiter(store throttled.GCRAStore, vary *WebsocketVaryBy, perMin, burstSize int) (*WebsocketRateLimiter, error) {
-	quota := throttled.RateQuota{throttled.PerMin(perMin), burstSize}
+	quota := throttled.RateQuota{MaxRate: throttled.PerMin(perMin), MaxBurst: burstSize}
 	rateLimiter, err := throttled.NewGCRARateLimiter(store, quota)
 	if err != nil {
 		return nil, err
@@ -79,17 +80,17 @@ func (l *WebsocketRateLimiter) RateLimit(method int, ressource string, remoteAdd
 		if v := context.Limit; v >= 0 {
 			limit = v
 		}
-	
+
 		var remaining int
 		if v := context.Remaining; v >= 0 {
 			remaining = v
 		}
-	
+
 		var resetAfter int
 		if v := context.ResetAfter; v >= 0 {
 			resetAfter = int(math.Ceil(v.Seconds()))
 		}
-	
+
 		var retryAfter int
 		if v := context.RetryAfter; v >= 0 {
 			retryAfter = int(math.Ceil(v.Seconds()))

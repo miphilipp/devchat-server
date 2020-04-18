@@ -1,20 +1,18 @@
 package server
 
 import (
-	"net/http"
-	"fmt"
-	"encoding/json"
-	"strings"
-	//"errors"
 	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/go-kit/kit/log/level"
-	//"github.com/gorilla/mux"
 	"github.com/golang/gddo/httputil/header"
 	core "github.com/miphilipp/devchat-server/internal"
 )
 
-var apiErrorToStatusCodeMap = map[int]int {
+var apiErrorToStatusCodeMap = map[int]int{
 	1000: http.StatusInternalServerError,
 	1001: http.StatusNotFound,
 	1002: http.StatusBadRequest,
@@ -40,7 +38,7 @@ var apiErrorToStatusCodeMap = map[int]int {
 	1023: http.StatusBadRequest,
 }
 
-func (s *Webserver)generateAuthenticateSession() func(next http.Handler) http.Handler {
+func (s *Webserver) generateAuthenticateSession() func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			tokenString := request.Header.Get("Authorization")
@@ -48,7 +46,7 @@ func (s *Webserver)generateAuthenticateSession() func(next http.Handler) http.Ha
 				checkForAPIError(core.ErrAuthFailed, writer)
 				return
 			}
-	
+
 			tokenString = strings.Replace(tokenString, "Bearer ", "", 1)
 			name, err := s.session.ValidateToken(tokenString)
 			if err == nil {
@@ -57,7 +55,7 @@ func (s *Webserver)generateAuthenticateSession() func(next http.Handler) http.Ha
 				if err != nil {
 					if !checkForAPIError(err, writer) {
 						writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-					} 
+					}
 					return
 				}
 				copiedRequest := request.WithContext(context.WithValue(request.Context(), "UserID", user.ID))
@@ -69,7 +67,6 @@ func (s *Webserver)generateAuthenticateSession() func(next http.Handler) http.Ha
 	}
 }
 
-
 func (s *Webserver) login(writer http.ResponseWriter, request *http.Request) {
 	if request.Header.Get("Content-Type") != "" {
 		value, _ := header.ParseValueAndParams(request.Header, "Content-Type")
@@ -80,8 +77,8 @@ func (s *Webserver) login(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	loginData := struct {
-		Password   string
-		Username   string
+		Password string
+		Username string
 	}{}
 	err := json.NewDecoder(request.Body).Decode(&loginData)
 	if err != nil {
@@ -94,7 +91,7 @@ func (s *Webserver) login(writer http.ResponseWriter, request *http.Request) {
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
@@ -108,16 +105,16 @@ func (s *Webserver) login(writer http.ResponseWriter, request *http.Request) {
 			level.Error(s.logger).Log("Handler", "login", "err", err)
 			http.Error(writer, "Error", http.StatusInternalServerError)
 			return
-		} 
+		}
 
 		reply.Success = true
 		writer.Header().Set("Content-Type", "application/json")
-		writer.Header().Set("Authorization", "Bearer " + token)
+		writer.Header().Set("Authorization", "Bearer "+token)
 		writer.WriteHeader(http.StatusOK)
 		json.NewEncoder(writer).Encode(reply)
 	} else {
 		reply.Success = false
-		
+
 		writer.Header().Set("Content-Type", "application/json")
 		writer.WriteHeader(http.StatusOK)
 		json.NewEncoder(writer).Encode(reply)
@@ -127,27 +124,27 @@ func (s *Webserver) login(writer http.ResponseWriter, request *http.Request) {
 
 // SetupRestHandlers registers all the  REST routes
 func (s Webserver) SetupRestHandlers() {
-	s.router.HandleFunc("/user", func(writer http.ResponseWriter, request *http.Request){
+	s.router.HandleFunc("/user", func(writer http.ResponseWriter, request *http.Request) {
 		s.registerUser(writer, request)
 	}).Methods(http.MethodPost)
 
-	s.router.HandleFunc("/login", func(writer http.ResponseWriter, request *http.Request){
+	s.router.HandleFunc("/login", func(writer http.ResponseWriter, request *http.Request) {
 		s.login(writer, request)
 	}).Methods(http.MethodPost)
 
-	s.router.HandleFunc("/logout", func(writer http.ResponseWriter, request *http.Request){
+	s.router.HandleFunc("/logout", func(writer http.ResponseWriter, request *http.Request) {
 		s.logout(writer, request)
 	}).Methods(http.MethodGet)
 
-	s.router.HandleFunc("/user/confirm", func(writer http.ResponseWriter, request *http.Request){
+	s.router.HandleFunc("/user/confirm", func(writer http.ResponseWriter, request *http.Request) {
 		s.confirmAccount(writer, request)
 	}).Methods(http.MethodPatch)
 
-	s.router.HandleFunc("/sendpasswordreset", func(writer http.ResponseWriter, request *http.Request){
+	s.router.HandleFunc("/sendpasswordreset", func(writer http.ResponseWriter, request *http.Request) {
 		s.sendPasswordReset(writer, request)
 	}).Methods(http.MethodPost)
 
-	s.router.HandleFunc("/passwordreset", func(writer http.ResponseWriter, request *http.Request){
+	s.router.HandleFunc("/passwordreset", func(writer http.ResponseWriter, request *http.Request) {
 		s.resetPassword(writer, request)
 	}).Methods(http.MethodPost)
 
@@ -156,99 +153,99 @@ func (s Webserver) SetupRestHandlers() {
 
 	media := s.router.PathPrefix("/media").Subrouter()
 	media.Use(s.generateMediaAuthenticationMiddleware())
-	media.HandleFunc("/user/{userid}/avatar", func(writer http.ResponseWriter, request *http.Request){
+	media.HandleFunc("/user/{userid}/avatar", func(writer http.ResponseWriter, request *http.Request) {
 		s.serveUserAvatar(writer, request)
 	}).Methods(http.MethodGet)
-	media.HandleFunc("/conversation/{conversationID}/message/{messageID}/media", func(writer http.ResponseWriter, request *http.Request){
+	media.HandleFunc("/conversation/{conversationID}/message/{messageID}/media", func(writer http.ResponseWriter, request *http.Request) {
 		s.serveMediaMessageRessource(writer, request)
 	}).Methods(http.MethodGet)
 
-	api.HandleFunc("/mediatoken", func(writer http.ResponseWriter, request *http.Request){
+	api.HandleFunc("/mediatoken", func(writer http.ResponseWriter, request *http.Request) {
 		s.getMediaToken(writer, request)
 	}).Methods(http.MethodGet)
 
-	api.HandleFunc("/conversation", func(writer http.ResponseWriter, request *http.Request){
+	api.HandleFunc("/conversation", func(writer http.ResponseWriter, request *http.Request) {
 		s.getConversation(writer, request)
 	}).Methods(http.MethodGet)
 
-	api.HandleFunc("/conversation", func(writer http.ResponseWriter, request *http.Request){ 
+	api.HandleFunc("/conversation", func(writer http.ResponseWriter, request *http.Request) {
 		s.postConversation(writer, request)
 	}).Methods(http.MethodPost)
 
-	api.HandleFunc("/conversation/{id}", func(writer http.ResponseWriter, request *http.Request){ 
+	api.HandleFunc("/conversation/{id}", func(writer http.ResponseWriter, request *http.Request) {
 		s.deleteConversation(writer, request)
 	}).Methods(http.MethodDelete)
 
-	api.HandleFunc("/conversation/{id}", func(writer http.ResponseWriter, request *http.Request){ 
+	api.HandleFunc("/conversation/{id}", func(writer http.ResponseWriter, request *http.Request) {
 		s.patchConversation(writer, request)
 	}).Methods(http.MethodPatch)
 
-	api.HandleFunc("/conversation/{id}/users", func(writer http.ResponseWriter, request *http.Request){
+	api.HandleFunc("/conversation/{id}/users", func(writer http.ResponseWriter, request *http.Request) {
 		s.getMembersOfConversation(writer, request)
 	}).Methods(http.MethodGet)
 
-	api.HandleFunc("/conversation/{conversationID}/users/{userID}", func(writer http.ResponseWriter, request *http.Request){
+	api.HandleFunc("/conversation/{conversationID}/users/{userID}", func(writer http.ResponseWriter, request *http.Request) {
 		s.deleteUserFromConversation(writer, request)
 	}).Methods(http.MethodDelete)
 
-	api.HandleFunc("/conversation/{conversationID}/users/{userID}", func(writer http.ResponseWriter, request *http.Request){
+	api.HandleFunc("/conversation/{conversationID}/users/{userID}", func(writer http.ResponseWriter, request *http.Request) {
 		s.patchAdminStatus(writer, request)
 	}).Methods(http.MethodPatch)
 
-	api.HandleFunc("/invitation", func(writer http.ResponseWriter, request *http.Request){ 
+	api.HandleFunc("/invitation", func(writer http.ResponseWriter, request *http.Request) {
 		s.getInvitations(writer, request)
 	}).Methods(http.MethodGet)
 
-	api.HandleFunc("/invitation", func(writer http.ResponseWriter, request *http.Request){ 
+	api.HandleFunc("/invitation", func(writer http.ResponseWriter, request *http.Request) {
 		s.postInvitation(writer, request)
 	}).Methods(http.MethodPost)
 
-	api.HandleFunc("/invitation", func(writer http.ResponseWriter, request *http.Request){ 
+	api.HandleFunc("/invitation", func(writer http.ResponseWriter, request *http.Request) {
 		s.patchInvitation(writer, request)
 	}).Methods(http.MethodPatch)
 
-	api.HandleFunc("/invitation", func(writer http.ResponseWriter, request *http.Request){ 
+	api.HandleFunc("/invitation", func(writer http.ResponseWriter, request *http.Request) {
 		s.deleteInvitation(writer, request)
 	}).Methods(http.MethodDelete)
 
-	api.HandleFunc("/user/avatar", func(writer http.ResponseWriter, request *http.Request){
+	api.HandleFunc("/user/avatar", func(writer http.ResponseWriter, request *http.Request) {
 		s.postNewAvatar(writer, request)
 	}).Methods(http.MethodPost)
 
-	api.HandleFunc("/user/avatar", func(writer http.ResponseWriter, request *http.Request){
+	api.HandleFunc("/user/avatar", func(writer http.ResponseWriter, request *http.Request) {
 		s.deleteAvatar(writer, request)
 	}).Methods(http.MethodDelete)
 
-	api.HandleFunc("/user", func(writer http.ResponseWriter, request *http.Request){
+	api.HandleFunc("/user", func(writer http.ResponseWriter, request *http.Request) {
 		s.getProfile(writer, request)
 	}).Methods(http.MethodGet)
 
-	api.HandleFunc("/user", func(writer http.ResponseWriter, request *http.Request){
+	api.HandleFunc("/user", func(writer http.ResponseWriter, request *http.Request) {
 		s.deleteUserAccount(writer, request)
 	}).Methods(http.MethodDelete)
 
-	api.HandleFunc("/user/password", func(writer http.ResponseWriter, request *http.Request){
+	api.HandleFunc("/user/password", func(writer http.ResponseWriter, request *http.Request) {
 		s.patchPassword(writer, request)
 	}).Methods(http.MethodPatch)
 
-	api.HandleFunc("/users", func(writer http.ResponseWriter, request *http.Request){
+	api.HandleFunc("/users", func(writer http.ResponseWriter, request *http.Request) {
 		s.getUsers(writer, request)
 	}).Queries("prefix", "{prefix}").Methods(http.MethodGet)
 
-	api.HandleFunc("/conversation/{id}/messages", func(writer http.ResponseWriter, request *http.Request){ 
+	api.HandleFunc("/conversation/{id}/messages", func(writer http.ResponseWriter, request *http.Request) {
 		s.getMessages(writer, request)
 	}).Methods(http.MethodGet)
 
-	api.HandleFunc("/conversation/{id}/messages/{messageID}/code", func(writer http.ResponseWriter, request *http.Request){ 
+	api.HandleFunc("/conversation/{id}/messages/{messageID}/code", func(writer http.ResponseWriter, request *http.Request) {
 		s.getCodeOfMessage(writer, request)
 	}).Methods(http.MethodGet)
 
-	api.HandleFunc("/conversation/{id}/messages/{messageID}", func(writer http.ResponseWriter, request *http.Request){
-		fmt.Println("getMessage") 
+	api.HandleFunc("/conversation/{id}/messages/{messageID}", func(writer http.ResponseWriter, request *http.Request) {
+		fmt.Println("getMessage")
 		s.getMessage(writer, request)
 	}).Methods(http.MethodGet)
 
-	api.HandleFunc("/programmingLanguages", func(writer http.ResponseWriter, request *http.Request){ 
+	api.HandleFunc("/programmingLanguages", func(writer http.ResponseWriter, request *http.Request) {
 		s.getProgrammingLanguages(writer, request)
 	}).Methods(http.MethodGet)
 
@@ -262,14 +259,14 @@ func (s Webserver) SetupRestHandlers() {
 			if err != nil {
 				if !checkForAPIError(err, writer) {
 					writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-				} 
+				}
 				return
 			}
 			s.socket.StartWebsocket(writer, request, user.ID)
 		} else {
 			checkForAPIError(core.ErrAuthFailed, writer)
 		}
-		
+
 	}).Queries("token", "{token}")
 }
 
@@ -286,10 +283,8 @@ func checkForAPIError(err error, writer http.ResponseWriter) bool {
 	return false
 }
 
-func writeJSONError(writer http.ResponseWriter, err error, statusCode int)  {
+func writeJSONError(writer http.ResponseWriter, err error, statusCode int) {
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(statusCode)
 	json.NewEncoder(writer).Encode(err)
 }
-
-

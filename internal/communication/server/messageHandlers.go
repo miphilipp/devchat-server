@@ -1,7 +1,6 @@
 package server
 
 import (
-	//"errors"
 	"net/http"
 	//"fmt"
 	"encoding/json"
@@ -67,7 +66,7 @@ func (s *Webserver) getMessages(writer http.ResponseWriter, request *http.Reques
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
@@ -99,26 +98,25 @@ func (s *Webserver) getCodeOfMessage(writer http.ResponseWriter, request *http.R
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
 	reply := struct {
 		Code string `json:"code"`
-	}{ code }
+	}{code}
 
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(reply)
 }
 
-
 func (s *Webserver) getProgrammingLanguages(writer http.ResponseWriter, request *http.Request) {
 	languages, err := s.messageService.ListProgrammingLanguages()
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
@@ -150,7 +148,7 @@ func (s *Webserver) getMessage(writer http.ResponseWriter, request *http.Request
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
@@ -160,5 +158,5 @@ func (s *Webserver) getMessage(writer http.ResponseWriter, request *http.Request
 }
 
 func (s *Webserver) serveMediaMessageRessource(writer http.ResponseWriter, request *http.Request) {
-	
+
 }

@@ -2,12 +2,12 @@ package server
 
 import (
 	//"errors"
-	"net/http"
 	"encoding/json"
+	"net/http"
 
 	"github.com/go-kit/kit/log/level"
-	"github.com/miphilipp/devchat-server/internal/communication/websocket"
 	core "github.com/miphilipp/devchat-server/internal"
+	"github.com/miphilipp/devchat-server/internal/communication/websocket"
 )
 
 func (s *Webserver) postInvitation(writer http.ResponseWriter, request *http.Request) {
@@ -26,13 +26,13 @@ func (s *Webserver) postInvitation(writer http.ResponseWriter, request *http.Req
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
 	command := websocket.RESTCommand{
 		Ressource: "invitation",
-		Method: websocket.PostCommandMethod,
+		Method:    websocket.PostCommandMethod,
 	}
 	s.socket.SendToClient(invitation.Recipient, -1, 0, command, invitation)
 
@@ -41,8 +41,12 @@ func (s *Webserver) postInvitation(writer http.ResponseWriter, request *http.Req
 		broadcast := struct {
 			core.Invitation
 			RecipientName string `json:"recipientName"`
-		}{ 
-			core.Invitation{invitation.ConversationID, invitation.ConversationTitle, invitation.Recipient},  
+		}{
+			core.Invitation{
+				ConversationID:    invitation.ConversationID,
+				ConversationTitle: invitation.ConversationTitle,
+				Recipient:         invitation.Recipient,
+			},
 			user.Name,
 		}
 		s.socket.BroadcastToRoom(invitation.ConversationID, command, broadcast, -1)
@@ -66,7 +70,7 @@ func (s *Webserver) deleteInvitation(writer http.ResponseWriter, request *http.R
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
@@ -74,19 +78,19 @@ func (s *Webserver) deleteInvitation(writer http.ResponseWriter, request *http.R
 		invitation.ConversationID,
 		websocket.RESTCommand{
 			Ressource: "invitation",
-			Method: websocket.DeleteCommandMethod,
+			Method:    websocket.DeleteCommandMethod,
 		}, invitation, -1,
 	)
-	
+
 	writer.WriteHeader(http.StatusOK)
 }
 
 func (s *Webserver) patchInvitation(writer http.ResponseWriter, request *http.Request) {
 	userID := request.Context().Value("UserID").(int)
-	requestBody := struct{
-	 	Action 			string `json:"action"`
-        ConversationID  int	   `json:"conversationId"`
-	}{ Action: "-" }
+	requestBody := struct {
+		Action         string `json:"action"`
+		ConversationID int    `json:"conversationId"`
+	}{Action: "-"}
 
 	err := json.NewDecoder(request.Body).Decode(&requestBody)
 	if err != nil {
@@ -108,20 +112,20 @@ func (s *Webserver) patchInvitation(writer http.ResponseWriter, request *http.Re
 		if err != nil {
 			if !checkForAPIError(err, writer) {
 				writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-			} 
+			}
 			return
 		}
 
-		reply := struct{
-			ConversationID  int	   `json:"conversationId"`
-			Recipient		int	   `json:"recipient"`
-		}{ conversationID, userID }
+		reply := struct {
+			ConversationID int `json:"conversationId"`
+			Recipient      int `json:"recipient"`
+		}{conversationID, userID}
 
 		s.socket.BroadcastToRoom(
 			conversationID,
 			websocket.RESTCommand{
 				Ressource: "invitation",
-				Method: websocket.DeleteCommandMethod,
+				Method:    websocket.DeleteCommandMethod,
 			}, reply, -1,
 		)
 
@@ -130,21 +134,21 @@ func (s *Webserver) patchInvitation(writer http.ResponseWriter, request *http.Re
 		if err != nil {
 			if !checkForAPIError(err, writer) {
 				writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-			} 
+			}
 			return
 		}
 
-		reply := struct{
-			ConversationID  int	   `json:"conversationId"`
-			Recipient		int	   `json:"recipient"`
-			ColorIndex		int	   `json:"colorIndex"`
-		}{ conversationID, userID, colorIndex }
+		reply := struct {
+			ConversationID int `json:"conversationId"`
+			Recipient      int `json:"recipient"`
+			ColorIndex     int `json:"colorIndex"`
+		}{conversationID, userID, colorIndex}
 
 		s.socket.BroadcastToRoom(
-			conversationID, 
+			conversationID,
 			websocket.RESTCommand{
 				Ressource: "invitation",
-				Method: websocket.PatchCommandMethod,
+				Method:    websocket.PatchCommandMethod,
 			}, reply, -1,
 		)
 		s.socket.JoinRoom(conversationID, userID)
@@ -163,7 +167,7 @@ func (s *Webserver) getInvitations(writer http.ResponseWriter, request *http.Req
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 

@@ -2,12 +2,12 @@ package main
 
 import (
 	//"fmt"
-	"time"
+	"context"
 	"flag"
+	"net/http"
 	"os"
 	"os/signal"
-	"context"
-	"net/http"
+	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -16,9 +16,9 @@ import (
 	"github.com/miphilipp/devchat-server/internal/communication/server"
 	"github.com/miphilipp/devchat-server/internal/communication/session"
 	"github.com/miphilipp/devchat-server/internal/communication/websocket"
+	"github.com/miphilipp/devchat-server/internal/conversations"
 	"github.com/miphilipp/devchat-server/internal/database"
 	"github.com/miphilipp/devchat-server/internal/mailing"
-	"github.com/miphilipp/devchat-server/internal/conversations"
 	"github.com/miphilipp/devchat-server/internal/messaging"
 	"github.com/miphilipp/devchat-server/internal/user"
 )
@@ -28,7 +28,7 @@ func main() {
 	var verbose bool
 	var configPath string
 
-	flag.DurationVar(&wait, "graceful-timeout", time.Second * 15, "the duration for which the server gracefully wait for existing connections to finish - e.g. 15s or 1m")
+	flag.DurationVar(&wait, "graceful-timeout", time.Second*15, "the duration for which the server gracefully wait for existing connections to finish - e.g. 15s or 1m")
 	flag.BoolVar(&verbose, "verbose", false, "")
 	flag.StringVar(&configPath, "configPath", "./config.yaml", "")
 	flag.Parse()
@@ -47,7 +47,7 @@ func main() {
 	err := readConfigFile(configPath, &cfg)
 	if err != nil {
 		level.Error(logger).Log(
-			"System", "Configuration", 
+			"System", "Configuration",
 			"Path", configPath,
 			"err", err,
 		)
@@ -61,7 +61,7 @@ func main() {
 	db, err := database.Connect(cfg.Database.Addr, cfg.Database.User, cfg.Database.Password, cfg.Database.Name)
 	if err != nil {
 		level.Error(logger).Log(
-			"System", "Main-database", 
+			"System", "Main-database",
 			"err", "DB Connection could not be established.",
 			"address", cfg.Database.Addr,
 		)
@@ -93,7 +93,6 @@ func main() {
 	messagingService = messaging.NewService(messageRepo, conversationRepo)
 	messagingService = messaging.NewLoggingService(logger, messagingService, verbose)
 
-
 	sessionPersistance, err := session.NewInMemorySessionPersistance(cfg.InMemoryDB.Addr, cfg.InMemoryDB.Password)
 	if err != nil {
 		level.Error(logger).Log("System", "SessionPersistance", "err", err)
@@ -109,8 +108,8 @@ func main() {
 	limiterStore, _ := limiter.New(sessionPersistance.RedisClient, "limiter_")
 
 	socket := websocket.New(
-		messagingService, 
-		conversationService, 
+		messagingService,
+		conversationService,
 		limiterStore,
 		log.WithPrefix(logger, "Interface", "websocket"))
 	if socket == nil {
@@ -118,9 +117,14 @@ func main() {
 	}
 
 	app := server.New(
-		server.ServerConfig{cfg.Server.Addr, cfg.Server.IndexFileName, cfg.Server.AssetsFolder},
-		userService, 
-		conversationService, 
+		server.ServerConfig{
+			Addr:                     cfg.Server.Addr,
+			IndexFileName:            cfg.Server.IndexFileName,
+			AssetsFolder:             cfg.Server.AssetsFolder,
+			AllowedRequestsPerMinute: cfg.Server.AllowedRequestsPerMinute,
+		},
+		userService,
+		conversationService,
 		messagingService,
 		socket,
 		session,
@@ -140,7 +144,6 @@ func main() {
 		logger.Log("Reason for quitting", err)
 	}()
 
-
 	var redirectServer *http.Server
 	if useSSL {
 		redirectServer = server.NewRedirectServer()
@@ -151,20 +154,22 @@ func main() {
 	}
 
 	c := make(chan os.Signal, 1)
-    signal.Notify(c, os.Interrupt)
-    <-c
+	signal.Notify(c, os.Interrupt)
+	<-c
 
-    ctx, cancel := context.WithTimeout(context.Background(), wait)
+	ctx, cancel := context.WithTimeout(context.Background(), wait)
 	defer cancel()
 	app.Server.Shutdown(ctx)
-	if redirectServer != nil { redirectServer.Shutdown(ctx) }
+	if redirectServer != nil {
+		redirectServer.Shutdown(ctx)
+	}
 	err = sessionPersistance.Persist()
 	if err != nil {
 		level.Error(logger).Log("System", "SessionPersistance", "err", err)
 	}
-    // Optionally, you could run srv.Shutdown in a goroutine and block on
-    // <-ctx.Done() if your application should wait for other services
-    // to finalize based on context cancellation.
-    level.Info(logger).Log("Messsage", "shutting down")
-    os.Exit(0)
+	// Optionally, you could run srv.Shutdown in a goroutine and block on
+	// <-ctx.Done() if your application should wait for other services
+	// to finalize based on context cancellation.
+	level.Info(logger).Log("Messsage", "shutting down")
+	os.Exit(0)
 }

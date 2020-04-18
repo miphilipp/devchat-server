@@ -13,6 +13,7 @@ type config struct {
 		AssetsFolder	string `yaml:"assetsFolder"`
 		CertFile		string `yaml:"certFile"`
 		KeyFile			string `yaml:"keyFile"`
+		AllowedRequestsPerMinute int `yaml:"allowedRequestsPerMinute"`
     } `yaml:"server"`
     Database struct {
 		Addr	 string `yaml:"addr"`

@@ -1,54 +1,56 @@
 package server
 
 import (
-	"net/http"
+	"context"
 	"encoding/json"
+	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 	"strings"
-	"context"
+	"time"
+
 	//"fmt"
 
-	"golang.org/x/text/language"
-	"github.com/go-kit/kit/log/level"
-	"github.com/throttled/throttled"
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/gorilla/mux"
-	"github.com/miphilipp/devchat-server/internal/communication/websocket"
+	core "github.com/miphilipp/devchat-server/internal"
 	"github.com/miphilipp/devchat-server/internal/communication/session"
+	"github.com/miphilipp/devchat-server/internal/communication/websocket"
 	"github.com/miphilipp/devchat-server/internal/conversations"
 	"github.com/miphilipp/devchat-server/internal/messaging"
 	"github.com/miphilipp/devchat-server/internal/user"
-	core "github.com/miphilipp/devchat-server/internal"
+	"github.com/throttled/throttled"
+	"golang.org/x/text/language"
 )
 
 var matcher = language.NewMatcher([]language.Tag{
-    language.German,
-    language.English,
+	language.German,
+	language.English,
 })
 
 type ServerConfig struct {
-	Addr 			string 
-	IndexFileName	string
-	AssetsFolder	string
+	Addr                     string
+	IndexFileName            string
+	AssetsFolder             string
+	AllowedRequestsPerMinute int
 }
 
 type Webserver struct {
-	config				ServerConfig
-	router     			*mux.Router
-	Server     			*http.Server
+	config ServerConfig
+	router *mux.Router
+	Server *http.Server
 
-	logger				log.Logger
+	logger log.Logger
 
-	socket				*websocket.Server
-	session				*session.SessionManager
+	socket  *websocket.Server
+	session *session.SessionManager
 
-	userService   		user.Service
+	userService         user.Service
 	conversationService conversations.Service
-	messageService 		messaging.Service
+	messageService      messaging.Service
 
-	actualWebpages		[]string
+	actualWebpages []string
 }
 
 func (s Webserver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -84,25 +86,25 @@ func (s Webserver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func limitSize(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.Body = http.MaxBytesReader(w, r.Body, 32 << 20 + 1024)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, 32<<20+1024)
 		next.ServeHTTP(w, r)
-    })
+	})
 }
 
 func parseLanguage(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		accept := r.Header.Get("Accept-Language")
-    	tag, _ := language.MatchStrings(matcher, accept)
+		tag, _ := language.MatchStrings(matcher, accept)
 		copiedRequest := r.WithContext(context.WithValue(r.Context(), "Language", tag))
 		next.ServeHTTP(w, copiedRequest)
-    })
+	})
 }
 
 // New erstellt eine neue Instanz vom Typ Webserver
 func New(
 	cfg ServerConfig,
-	userService user.Service, 
+	userService user.Service,
 	cService conversations.Service,
 	mService messaging.Service,
 	socket *websocket.Server,
@@ -119,19 +121,23 @@ func New(
 	}
 
 	app := &Webserver{
-		config: cfg,
-		router:     router,
-		Server:     srv,
-		userService:	userService,
+		config:              cfg,
+		router:              router,
+		Server:              srv,
+		userService:         userService,
 		conversationService: cService,
-		messageService: mService,
-		logger: logger,
-		socket: socket,
-		session: session,
-		actualWebpages: []string{"/login", "/forgot", "/", "/preferences", "/confirm"},
+		messageService:      mService,
+		logger:              logger,
+		socket:              socket,
+		session:             session,
+		actualWebpages:      []string{"/login", "/forgot", "/", "/preferences", "/confirm"},
 	}
 
-	quota := throttled.RateQuota{throttled.PerMin(20), 5}
+	if cfg.AllowedRequestsPerMinute == 0 {
+		cfg.AllowedRequestsPerMinute = 10
+	}
+
+	quota := throttled.RateQuota{MaxRate: throttled.PerMin(cfg.AllowedRequestsPerMinute), MaxBurst: 3}
 	rateLimiter, err := throttled.NewGCRARateLimiter(limiterStore, quota)
 	if err != nil {
 		return nil
@@ -158,10 +164,10 @@ func (s *Webserver) getMediaToken(writer http.ResponseWriter, request *http.Requ
 	}
 
 	reply := struct {
-		Token 		string  `json:"token"`
-		Expiration 	int64	`json:"expiration"`
+		Token      string `json:"token"`
+		Expiration int64  `json:"expiration"`
 	}{
-		Token: token,
+		Token:      token,
 		Expiration: time.Now().Add(ttl).Unix(),
 	}
 
@@ -190,13 +196,14 @@ func (s *Webserver) generateMediaAuthenticationMiddleware() func(next http.Handl
 	}
 }
 
+// SetupFileServer sets up file server handlers for all webpages and its subpages.
 func (s Webserver) SetupFileServer() {
 	for _, path := range s.actualWebpages {
 		s.router.PathPrefix(path).Handler(s).Methods(http.MethodGet)
 	}
 }
 
-func (s *Webserver) logout(writer http.ResponseWriter, request *http.Request)  {
+func (s *Webserver) logout(writer http.ResponseWriter, request *http.Request) {
 	tokenString := request.Header.Get("Authorization")
 	if len(tokenString) == 0 {
 		http.Error(writer, "Missing header", http.StatusBadRequest)
@@ -214,12 +221,12 @@ func (s *Webserver) logout(writer http.ResponseWriter, request *http.Request)  {
 }
 
 func containsPath(paths []string, path string) bool {
-    for _, p := range paths {
-        if p == path {
-            return true
-        }
-    }
-    return false
+	for _, p := range paths {
+		if p == path {
+			return true
+		}
+	}
+	return false
 }
 
 func makeLinkPrefix(r *http.Request) string {

@@ -3,6 +3,7 @@ package user
 import (
 	"fmt"
 	"time"
+
 	"github.com/google/uuid"
 
 	core "github.com/miphilipp/devchat-server/internal"
@@ -15,10 +16,10 @@ func (s *service) SendPasswordResetMail(emailAddress, baseURL, language string) 
 		return err
 	}
 
-	body := 
+	body :=
 		"Bitte klicken Sie auf diesen Link um Ihr Konto zu bestätigen: \r\n\r\n" +
-		fmt.Sprintf("%s/forgot?token=%s\r\n", baseURL, token) +
-		"\r\nFür den Fall, dass Sie diese Mail unerwartet erhalten haben, ignorieren Sie diese Mail bitte."
+			fmt.Sprintf("%s/forgot?token=%s\r\n", baseURL, token) +
+			"\r\nFür den Fall, dass Sie diese Mail unerwartet erhalten haben, ignorieren Sie diese Mail bitte."
 	err = s.mailing.SendEmail(emailAddress, "DevChat-Passwortwiederherstellung", body)
 	if err != nil {
 		return err
@@ -32,7 +33,6 @@ func (s *service) ResetPassword(recoveryUUID string, newPassword string) (string
 	if err != nil {
 		return "", core.ErrInvalidToken
 	}
-
 
 	if checkPasswordPolicy(newPassword) {
 		return "", core.ErrPasswordDoesNotMeetRequiremens
