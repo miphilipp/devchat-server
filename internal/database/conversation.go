@@ -14,10 +14,10 @@ type conversationRepository struct {
 func (r *conversationRepository) FindConversationsForUser(user int) ([]core.Conversation, error) {
 	conversations := make([]core.Conversation, 0, 2)
 	_, err := r.db.Query(&conversations, `
-			SELECT id, title, repourl, calculateUnreadaMessages(id, ?) as unreadMessagesCount
+			SELECT id, title, repourl, calculateunreadmessages(id, ?) as unreadMessagesCount
 			FROM conversation c
 			JOIN group_association g on c.id = g.conversationid
-			WHERE userid = ?;`, user)
+			WHERE userid = ?;`, user, user)
 
 	return conversations, core.NewDataBaseError(err)
 }
