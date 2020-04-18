@@ -1,8 +1,9 @@
 package messaging
 
 import (
-	"time"
 	"encoding/json"
+	"time"
+
 	"github.com/go-kit/kit/log"
 	core "github.com/miphilipp/devchat-server/internal"
 )
@@ -13,7 +14,7 @@ type loggingService struct {
 	verbose bool
 }
 
-func NewLoggingService(logger log.Logger, s Service, verbose bool) Service  {
+func NewLoggingService(logger log.Logger, s Service, verbose bool) Service {
 	return &loggingService{logger, s, verbose}
 }
 
@@ -21,23 +22,23 @@ func (s *loggingService) ReadMessages(userID int, message json.RawMessage) (err 
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "ReadMessages", 
-				"userID", userID, 
-				"took", time.Since(begin), 
+				"Use-Case", "ReadMessages",
+				"userID", userID,
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
 	return s.next.ReadMessages(userID, message)
 }
 
-func (s *loggingService) SendMessage(target int, userID int, message json.RawMessage) (answer interface{}, err error)  {
+func (s *loggingService) SendMessage(target int, userID int, message json.RawMessage) (answer interface{}, err error) {
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "SendMessage", 
-				"userID", userID, 
-				"target", target, 
-				"took", time.Since(begin), 
+				"Use-Case", "SendMessage",
+				"userID", userID,
+				"target", target,
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -48,13 +49,13 @@ func (s *loggingService) ListAllMessages(userID int, conversationID int, beforeI
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "ListAllMessages", 
-				"userID", userID, 
-				"conversationID", conversationID, 
+				"Use-Case", "ListAllMessages",
+				"userID", userID,
+				"conversationID", conversationID,
 				"beforeInSequence", beforeInSequence,
 				"type", mType,
 				"limit", limit,
-				"took", time.Since(begin), 
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -65,8 +66,8 @@ func (s *loggingService) ListProgrammingLanguages() (languages []core.Programmin
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "ListProgrammingLanguages", 
-				"took", time.Since(begin), 
+				"Use-Case", "ListProgrammingLanguages",
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -77,11 +78,11 @@ func (s *loggingService) GetCodeOfMessage(userCtx int, conversationID int, messa
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "GetCodeOfMessage", 
-				"userCtx", userCtx, 
-				"messageID", messageID, 
+				"Use-Case", "GetCodeOfMessage",
+				"userCtx", userCtx,
+				"messageID", messageID,
 				"conversationID", conversationID,
-				"took", time.Since(begin), 
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -92,10 +93,10 @@ func (s *loggingService) EditMessage(userCtx int, conversationID int, message js
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "EditMessage", 
-				"userCtx", userCtx, 
-				"conversationID", conversationID, 
-				"took", time.Since(begin), 
+				"Use-Case", "EditMessage",
+				"userCtx", userCtx,
+				"conversationID", conversationID,
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -106,11 +107,11 @@ func (s *loggingService) ToggleLiveSession(userCtx, conversationID int, state bo
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "ToggleLiveSession", 
-				"userCtx", userCtx, 
-				"conversationID", conversationID, 
+				"Use-Case", "ToggleLiveSession",
+				"userCtx", userCtx,
+				"conversationID", conversationID,
 				"state", state,
-				"took", time.Since(begin), 
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -121,13 +122,12 @@ func (s *loggingService) GetMessage(userCtx, conversationID, messageID int) (mes
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "GetMessage", 
-				"userCtx", userCtx, 
-				"conversationID", conversationID, 
-				"took", time.Since(begin), 
+				"Use-Case", "GetMessage",
+				"userCtx", userCtx,
+				"conversationID", conversationID,
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
 	return s.next.GetMessage(userCtx, conversationID, messageID)
 }
-

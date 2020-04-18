@@ -2,6 +2,7 @@ package user
 
 import (
 	"time"
+
 	"github.com/go-kit/kit/log"
 
 	core "github.com/miphilipp/devchat-server/internal"
@@ -13,7 +14,7 @@ type loggingService struct {
 	verbose bool
 }
 
-func NewLoggingService(logger log.Logger, s Service, verbose bool) Service  {
+func NewLoggingService(logger log.Logger, s Service, verbose bool) Service {
 	return &loggingService{logger, s, verbose}
 }
 
@@ -21,9 +22,9 @@ func (s *loggingService) AuthenticateUser(username string, password string) (use
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "AuthenticateUser", 
-				"username", username, 
-				"took", time.Since(begin), 
+				"Use-Case", "AuthenticateUser",
+				"username", username,
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -34,9 +35,9 @@ func (s *loggingService) SearchUsers(prefix string) (users []core.User, err erro
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "SearchUsers", 
-				"prefix", prefix, 
-				"took", time.Since(begin), 
+				"Use-Case", "SearchUsers",
+				"prefix", prefix,
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -47,8 +48,8 @@ func (s *loggingService) ResetPassword(recoveryUUID string, newPassword string) 
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "ResetPassword", 
-				"took", time.Since(begin), 
+				"Use-Case", "ResetPassword",
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -59,9 +60,9 @@ func (s *loggingService) GetUserForID(id int) (user core.User, err error) {
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "GetUserForID", 
-				"userID", id, 
-				"took", time.Since(begin), 
+				"Use-Case", "GetUserForID",
+				"userID", id,
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -72,9 +73,9 @@ func (s *loggingService) GetUserForName(name string) (user core.User, err error)
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "GetUserForName", 
-				"name", name, 
-				"took", time.Since(begin), 
+				"Use-Case", "GetUserForName",
+				"name", name,
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -85,9 +86,9 @@ func (s *loggingService) DeleteAccount(userID int) (err error) {
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "DeleteAccount", 
-				"userID", userID, 
-				"took", time.Since(begin), 
+				"Use-Case", "DeleteAccount",
+				"userID", userID,
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -98,8 +99,8 @@ func (s *loggingService) CreateAccount(newUser core.User, password string, serve
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "CreateAccount", 
-				"took", time.Since(begin), 
+				"Use-Case", "CreateAccount",
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -110,8 +111,8 @@ func (s *loggingService) ConfirmAccount(token string) (username string, err erro
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "ConfirmAccount", 
-				"took", time.Since(begin), 
+				"Use-Case", "ConfirmAccount",
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -122,9 +123,9 @@ func (s *loggingService) SendPasswordResetMail(emailAddress, baseURL, language s
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "SendPasswordResetMail", 
+				"Use-Case", "SendPasswordResetMail",
 				"E-Mail", emailAddress,
-				"took", time.Since(begin), 
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -135,10 +136,10 @@ func (s *loggingService) ChangeOnlineState(userCtx int, state bool) (err error) 
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "ChangeOnlineState", 
+				"Use-Case", "ChangeOnlineState",
 				"Context", userCtx,
 				"State", state,
-				"took", time.Since(begin), 
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -149,9 +150,9 @@ func (s *loggingService) ChangePassword(userid int, oldPassword string, newPassw
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "ChangePassword", 
+				"Use-Case", "ChangePassword",
 				"userID", userid,
-				"took", time.Since(begin), 
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -162,10 +163,10 @@ func (s *loggingService) SaveAvatar(filePath string, fileType string, buffer []b
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "SaveAvatar", 
+				"Use-Case", "SaveAvatar",
 				"path", filePath,
 				"type", fileType,
-				"took", time.Since(begin), 
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -176,9 +177,9 @@ func (s *loggingService) DeleteAvatar(filePath string) (err error) {
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "DeleteAvatar", 
+				"Use-Case", "DeleteAvatar",
 				"path", filePath,
-				"took", time.Since(begin), 
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())

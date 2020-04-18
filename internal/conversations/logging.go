@@ -2,6 +2,7 @@ package conversations
 
 import (
 	"time"
+
 	"github.com/go-kit/kit/log"
 	core "github.com/miphilipp/devchat-server/internal"
 )
@@ -12,45 +13,45 @@ type loggingService struct {
 	verbose bool
 }
 
-func NewLoggingService(logger log.Logger, s Service, verbose bool) Service  {
+func NewLoggingService(logger log.Logger, s Service, verbose bool) Service {
 	return &loggingService{logger, s, verbose}
 }
 
-func (s *loggingService) DeleteConversation(userID int, conversationID int) (err error) {
+func (s *loggingService) DeleteConversation(userCtx int, conversationID int) (err error) {
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "DeleteConversation", 
-				"userID", userID, 
-				"conversationID", conversationID, 
-				"took", time.Since(begin), 
+				"Use-Case", "DeleteConversation",
+				"userID", userCtx,
+				"conversationID", conversationID,
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
-	return s.next.DeleteConversation(userID, conversationID)
+	return s.next.DeleteConversation(userCtx, conversationID)
 }
 
-func (s *loggingService) JoinConversation(userID int, conversationID int) (colorIndex int, err error) {
+func (s *loggingService) JoinConversation(userCtx int, conversationID int) (colorIndex int, err error) {
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "JoinConversation", 
-				"userID", userID, 
-				"conversationID", conversationID, 
-				"took", time.Since(begin), 
+				"Use-Case", "JoinConversation",
+				"userID", userCtx,
+				"conversationID", conversationID,
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
-	return s.next.JoinConversation(userID, conversationID)
+	return s.next.JoinConversation(userCtx, conversationID)
 }
 
 func (s *loggingService) ListInvitations(userID int) (inviations []core.Invitation, err error) {
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "ListInvitations", 
-				"userID", userID, 
-				"took", time.Since(begin), 
+				"Use-Case", "ListInvitations",
+				"userID", userID,
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -61,11 +62,11 @@ func (s *loggingService) CreateConversation(userID int, title, repoURL string, i
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "CreateConversation", 
-				"userID", userID, 
+				"Use-Case", "CreateConversation",
+				"userID", userID,
 				"title", title,
 				"repoURL", repoURL,
-				"took", time.Since(begin), 
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -76,9 +77,9 @@ func (s *loggingService) EditConversation(userCtx int, conversation core.Convers
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "EditConversation", 
-				"userCtx", userCtx, 
-				"took", time.Since(begin), 
+				"Use-Case", "EditConversation",
+				"userCtx", userCtx,
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -89,9 +90,9 @@ func (s *loggingService) ListConversationsForUser(user int) (conversations []cor
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "ListConversationsForUser", 
-				"userID", user, 
-				"took", time.Since(begin), 
+				"Use-Case", "ListConversationsForUser",
+				"userID", user,
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -102,8 +103,8 @@ func (s *loggingService) ListConversations() (conversations []core.Conversation,
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "ListConversations", 
-				"took", time.Since(begin), 
+				"Use-Case", "ListConversations",
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
@@ -115,10 +116,10 @@ func (s *loggingService) InviteUser(userCtx int, userID int, conversation int) (
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "InviteUser", 
+				"Use-Case", "InviteUser",
 				"userCtx", userCtx,
-				"userID", userID, 
-				"conversationID", conversation, 
+				"userID", userID,
+				"conversationID", conversation,
 				"took", time.Since(begin),
 				"err", err)
 		}
@@ -130,10 +131,10 @@ func (s *loggingService) RevokeInvitation(userCtx, userID, conversationID int) (
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "RevokeInvitation", 
+				"Use-Case", "RevokeInvitation",
 				"userCtx", userCtx,
-				"userID", userID, 
-				"conversationID", conversationID, 
+				"userID", userID,
+				"conversationID", conversationID,
 				"took", time.Since(begin),
 				"err", err)
 		}
@@ -141,45 +142,45 @@ func (s *loggingService) RevokeInvitation(userCtx, userID, conversationID int) (
 	return s.next.RevokeInvitation(userCtx, userID, conversationID)
 }
 
-func (s *loggingService) DenieInvitation(userID int, conversationID int) (err error) {
+func (s *loggingService) DenieInvitation(userCtx int, conversationID int) (err error) {
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "DenieInvitation", 
-				"userID", userID, 
-				"conversationID", conversationID, 
-				"took", time.Since(begin), 
+				"Use-Case", "DenieInvitation",
+				"userID", userCtx,
+				"conversationID", conversationID,
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
-	return s.next.DenieInvitation(userID, conversationID)
+	return s.next.DenieInvitation(userCtx, conversationID)
 }
 
 // MakeAdmin makes the passed user into an admin for a given conversation
-func (s *loggingService) SetAdminStatus(userID, newAdmin, conversationID int, status bool) (err error) {
+func (s *loggingService) SetAdminStatus(userCtx, newAdmin, conversationID int, status bool) (err error) {
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "SetAdminStatus", 
-				"userID", userID, 
-				"newAdminID", newAdmin, 
-				"conversationID", conversationID, 
+				"Use-Case", "SetAdminStatus",
+				"userID", userCtx,
+				"newAdminID", newAdmin,
+				"conversationID", conversationID,
 				"status", status,
-				"took", time.Since(begin), 
+				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
-	return s.next.SetAdminStatus(userID, newAdmin, conversationID, status)
+	return s.next.SetAdminStatus(userCtx, newAdmin, conversationID, status)
 }
 
 func (s *loggingService) RemoveUserFromConversation(userCtx, userID, conversationID int) (err error) {
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "RemoveUserFromConversation", 
+				"Use-Case", "RemoveUserFromConversation",
 				"userContext", userCtx,
-				"userID", userID, 
-				"conversationID", conversationID, 
+				"userID", userID,
+				"conversationID", conversationID,
 				"took", time.Since(begin),
 				"err", err)
 		}
@@ -191,9 +192,9 @@ func (s *loggingService) ListUsersOfConversation(userCtx int, conversationID int
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "ListUsersOfConversation", 
-				"userCtx", userCtx, 
-				"conversationID", conversationID, 
+				"Use-Case", "ListUsersOfConversation",
+				"userCtx", userCtx,
+				"conversationID", conversationID,
 				"took", time.Since(begin),
 				"err", err)
 		}
@@ -202,16 +203,16 @@ func (s *loggingService) ListUsersOfConversation(userCtx int, conversationID int
 }
 
 // LeaveConversation removes a user from a conversation
-func (s *loggingService) LeaveConversation(userID, conversationID, newAdmin int) (err error) {
+func (s *loggingService) LeaveConversation(userCtx, conversationID, newAdmin int) (err error) {
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "LeaveConversation", 
-				"userID", userID, 
-				"conversationID", conversationID, 
+				"Use-Case", "LeaveConversation",
+				"userID", userCtx,
+				"conversationID", conversationID,
 				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
-	return s.next.LeaveConversation(userID, conversationID, newAdmin)
+	return s.next.LeaveConversation(userCtx, conversationID, newAdmin)
 }
