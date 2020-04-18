@@ -2,21 +2,22 @@ package websocket
 
 import (
 	//"fmt"
-	"sync"
 	"math/rand"
+	"sync"
+
 	"github.com/gorilla/websocket"
 )
 
 type client struct {
-	id int
-	conns []*websocket.Conn
-	connsLock sync.Mutex
-	Send chan messageFrame
-	ReadClose chan struct{}
+	id         int
+	conns      []*websocket.Conn
+	connsLock  sync.Mutex
+	Send       chan messageFrame
+	ReadClose  chan struct{}
 	Disconnect chan int
 }
- 
-func (s *Server) DisconnectClient(clientID int)  {
+
+func (s *Server) DisconnectClient(clientID int) {
 	clients.RLock()
 	client, ok := clients.m[clientID]
 	clients.RUnlock()
@@ -27,17 +28,16 @@ func (s *Server) DisconnectClient(clientID int)  {
 
 func newClient(id int) *client {
 	return &client{
-		id: id,
-		conns: make([]*websocket.Conn, 0, 2),
-		Send: make(chan messageFrame),
+		id:         id,
+		conns:      make([]*websocket.Conn, 0, 2),
+		Send:       make(chan messageFrame),
 		Disconnect: make(chan int),
-		ReadClose: make(chan struct{}),
+		ReadClose:  make(chan struct{}),
 	}
 }
 
-
 // SendToClient sends a message over all the connections a client has established.
-func (s *Server) SendToClient(clientID, source, id int, command RESTCommand, payload interface{})  {
+func (s *Server) SendToClient(clientID, source, id int, command RESTCommand, payload interface{}) {
 	clients.RLock()
 	client, ok := clients.m[clientID]
 	clients.RUnlock()

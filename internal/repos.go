@@ -2,6 +2,7 @@ package core
 
 import (
 	"time"
+
 	"github.com/google/uuid"
 )
 
@@ -40,7 +41,7 @@ type UserRepo interface {
 	CreateUser(user User, password string) (User, error)
 	IncrementFailedLoginAttempts(user string) error
 	SetPassword(user int, newPassword string) error
-	CreateRecoverID(emailAddress string) (uuid.UUID, error) 
+	CreateRecoverID(emailAddress string) (uuid.UUID, error)
 	UpdateOnlineState(userID int, state bool) error
 	RecoverPassword(recoveryUUID uuid.UUID, password string) (string, error)
 
@@ -57,7 +58,7 @@ type UserRepo interface {
 
 // MessageRepo
 type MessageRepo interface {
-	
+
 	// Mutations
 	StoreTextMessage(conversation, user int, m TextMessage) (int, error)
 	StoreCodeMessage(conversation, user int, m CodeMessage) (int, error)

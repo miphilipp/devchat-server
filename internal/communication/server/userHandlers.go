@@ -1,21 +1,22 @@
 package server
 
 import (
+	"bufio"
 	"net/http"
 	"os"
-	"bufio"
-	//"fmt"
-	"strconv"
-	"encoding/json"
 
-	"golang.org/x/text/language"
-	"github.com/gorilla/mux"
+	//"fmt"
+	"encoding/json"
+	"strconv"
+
 	"github.com/go-kit/kit/log/level"
+	"github.com/gorilla/mux"
 	core "github.com/miphilipp/devchat-server/internal"
+	"golang.org/x/text/language"
 )
 
 type userSearchResponse struct {
-	ID int `json:"id"`
+	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
 
@@ -43,9 +44,9 @@ func (s *Webserver) serveUserAvatar(writer http.ResponseWriter, request *http.Re
 			http.Error(writer, "Not found", http.StatusNotFound)
 			return
 		}
-		
+
 		path = defaultAvatarPath
-	} 
+	}
 
 	http.ServeFile(writer, request, path)
 }
@@ -55,8 +56,8 @@ func (s *Webserver) registerUser(writer http.ResponseWriter, request *http.Reque
 	requestBody := struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
-		Email	 string `json:"email"`
-	}{ "-", "-", "-" }
+		Email    string `json:"email"`
+	}{"-", "-", "-"}
 
 	err := json.NewDecoder(request.Body).Decode(&requestBody)
 	if err != nil {
@@ -86,13 +87,13 @@ func (s *Webserver) registerUser(writer http.ResponseWriter, request *http.Reque
 
 	user := core.User{
 		Email: requestBody.Email,
-		Name: requestBody.Username,
+		Name:  requestBody.Username,
 	}
 	err = s.userService.CreateAccount(user, requestBody.Password, makeLinkPrefix(request))
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
@@ -101,8 +102,8 @@ func (s *Webserver) registerUser(writer http.ResponseWriter, request *http.Reque
 
 func (s *Webserver) confirmAccount(writer http.ResponseWriter, request *http.Request) {
 	requestBody := struct {
-		Token	 string `json:"token"`
-	}{ "-" }
+		Token string `json:"token"`
+	}{"-"}
 
 	err := json.NewDecoder(request.Body).Decode(&requestBody)
 	if err != nil {
@@ -122,13 +123,13 @@ func (s *Webserver) confirmAccount(writer http.ResponseWriter, request *http.Req
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
 	reply := struct {
 		Username string `json:"username"`
-	}{ username }
+	}{username}
 
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
@@ -141,7 +142,7 @@ func (s *Webserver) getProfile(writer http.ResponseWriter, request *http.Request
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
@@ -156,14 +157,14 @@ func (s *Webserver) getUsers(writer http.ResponseWriter, request *http.Request) 
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
 	response := make([]userSearchResponse, 0, len(users))
 	for _, user := range users {
 		response = append(response, userSearchResponse{
-			ID: user.ID,
+			ID:   user.ID,
 			Name: user.Name,
 		})
 	}
@@ -175,8 +176,8 @@ func (s *Webserver) getUsers(writer http.ResponseWriter, request *http.Request) 
 func (s *Webserver) sendPasswordReset(writer http.ResponseWriter, request *http.Request) {
 	language := request.Context().Value("Language").(language.Tag)
 	requestBody := struct {
-		Email	 string `json:"email"`
-	}{ "-" }
+		Email string `json:"email"`
+	}{"-"}
 
 	err := json.NewDecoder(request.Body).Decode(&requestBody)
 	if err != nil {
@@ -196,20 +197,20 @@ func (s *Webserver) sendPasswordReset(writer http.ResponseWriter, request *http.
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
 	writer.WriteHeader(http.StatusOK)
 }
 
-func (s *Webserver) patchPassword(writer http.ResponseWriter, request *http.Request)  {
+func (s *Webserver) patchPassword(writer http.ResponseWriter, request *http.Request) {
 	userCtx := request.Context().Value("UserID").(int)
 	user, err := s.userService.GetUserForID(userCtx)
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
@@ -241,7 +242,7 @@ func (s *Webserver) patchPassword(writer http.ResponseWriter, request *http.Requ
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
@@ -252,8 +253,8 @@ func (s *Webserver) patchPassword(writer http.ResponseWriter, request *http.Requ
 func (s *Webserver) resetPassword(writer http.ResponseWriter, request *http.Request) {
 	requestBody := struct {
 		RecoveryUUID string `json:"recoveryUUID"`
-		Password string `json:"password"`
-	}{"-",  "-"}
+		Password     string `json:"password"`
+	}{"-", "-"}
 	err := json.NewDecoder(request.Body).Decode(&requestBody)
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "recoverPassword", "err", err)
@@ -278,7 +279,7 @@ func (s *Webserver) resetPassword(writer http.ResponseWriter, request *http.Requ
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
@@ -286,7 +287,7 @@ func (s *Webserver) resetPassword(writer http.ResponseWriter, request *http.Requ
 
 	reply := struct {
 		Username string `json:"username"`
-	}{ username }
+	}{username}
 
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
@@ -299,7 +300,7 @@ func (s *Webserver) deleteUserAccount(writer http.ResponseWriter, request *http.
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
@@ -307,7 +308,7 @@ func (s *Webserver) deleteUserAccount(writer http.ResponseWriter, request *http.
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
@@ -324,14 +325,14 @@ func (s *Webserver) postNewAvatar(writer http.ResponseWriter, request *http.Requ
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "postNewAvatar", "err", err)
 		http.Error(writer, err.Error(), http.StatusBadRequest)
-        return
+		return
 	}
 
 	file, header, err := request.FormFile("avatar")
-    if err != nil {
+	if err != nil {
 		level.Error(s.logger).Log("Handler", "postNewAvatar", "err", err)
-        http.Error(writer, err.Error(), http.StatusBadRequest)
-        return
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
 	}
 	defer file.Close()
 
@@ -340,7 +341,7 @@ func (s *Webserver) postNewAvatar(writer http.ResponseWriter, request *http.Requ
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "postNewAvatar", "err", err)
 		writeJSONError(writer, core.ErrUnknownError, http.StatusBadRequest)
-        return
+		return
 	}
 
 	contentType := http.DetectContentType(sniff)
@@ -351,9 +352,9 @@ func (s *Webserver) postNewAvatar(writer http.ResponseWriter, request *http.Requ
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
-	} 
+	}
 
 	writer.WriteHeader(http.StatusOK)
 }
@@ -364,9 +365,9 @@ func (s *Webserver) deleteAvatar(writer http.ResponseWriter, request *http.Reque
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
-	} 
+	}
 	writer.WriteHeader(http.StatusOK)
 }
 

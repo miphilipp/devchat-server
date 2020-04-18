@@ -9,10 +9,10 @@ import (
 )
 
 type mailingService struct {
-	auth 		smtp.Auth
+	auth        smtp.Auth
 	senderEmail string
-	server 		string
-	port 		uint16
+	server      string
+	port        uint16
 }
 
 func NewService(server string, port uint16, password, user, senderEmail string) core.MailingService {
@@ -22,21 +22,21 @@ func NewService(server string, port uint16, password, user, senderEmail string) 
 		password,
 		server,
 	)
-	return &mailingService {
-		auth: auth,
+	return &mailingService{
+		auth:        auth,
 		senderEmail: senderEmail,
-		port: port,
-		server: server,
+		port:        port,
+		server:      server,
 	}
 }
 
 func (m *mailingService) SendEmail(to, subject, body string) error {
-	
+
 	msg := fmt.Sprintf(
-				"To: %s\r\n" +
-				"Subject: %s\r\n" +
-				"\r\n" +
-				"%s\r\n", to, subject, body)
+		"To: %s\r\n"+
+			"Subject: %s\r\n"+
+			"\r\n"+
+			"%s\r\n", to, subject, body)
 
 	err := smtp.SendMail(
 		fmt.Sprintf("%s:%d", m.server, m.port),

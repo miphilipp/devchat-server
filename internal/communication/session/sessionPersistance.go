@@ -1,15 +1,15 @@
 package session
 
 import (
-	"strings"
-	"strconv"
-	"time"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	//"errors"
 
 	"github.com/go-redis/redis"
 )
-
 
 type SessionPersistance interface {
 	BlackList(username string, token string, exp float64) error
@@ -26,7 +26,7 @@ func NewInMemorySessionPersistance(addr string, password string) (*inMemorySessi
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: password,
-		DB:       0,  // use default DB
+		DB:       0, // use default DB
 	})
 
 	_, err := redisClient.Ping().Result()
@@ -34,13 +34,13 @@ func NewInMemorySessionPersistance(addr string, password string) (*inMemorySessi
 		return nil, err
 	}
 
-	return &inMemorySessionPersistance {
+	return &inMemorySessionPersistance{
 		RedisClient: redisClient,
 	}, nil
 }
 
 func (p inMemorySessionPersistance) IsBlackListed(username string, token string) (bool, error) {
-	list, err := p.RedisClient.LRange("invalid__" + username, 0, -1).Result()
+	list, err := p.RedisClient.LRange("invalid__"+username, 0, -1).Result()
 	if err != nil {
 		return false, err
 	}
@@ -63,7 +63,7 @@ func (p inMemorySessionPersistance) IsBlackListed(username string, token string)
 		}
 
 		if time.Unix(unixTimeSeconds, 0).Before(time.Now().UTC()) {
-			err = p.RedisClient.LRem("invalid__" + username, 0, pair).Err()
+			err = p.RedisClient.LRem("invalid__"+username, 0, pair).Err()
 			if err != nil {
 				return false, err
 			}
@@ -77,7 +77,7 @@ func (p inMemorySessionPersistance) BlackList(username string, token string, exp
 	values := []string{token, strconv.FormatFloat(exp, 'f', 0, 64)}
 	searchPair := strings.Join(values, ",")
 
-	list, err := p.RedisClient.LRange("valid__" + username, 0, -1).Result()
+	list, err := p.RedisClient.LRange("valid__"+username, 0, -1).Result()
 	if err != nil {
 		return err
 	}
@@ -96,31 +96,31 @@ func (p inMemorySessionPersistance) BlackList(username string, token string, exp
 
 		// Wenn gefunden und noch nicht abgelaufen, dann einfügen
 		if searchPair == pair && time.Unix(unixTimeSeconds, 0).After(time.Now().UTC()) {
-			err = p.RedisClient.RPush("invalid__" + username, pair).Err()
+			err = p.RedisClient.RPush("invalid__"+username, pair).Err()
 			if err != nil {
 				return err
 			}
 		}
-		
+
 		// Wenn gefunden oder abgelaufen, dann entfernen
 		if searchPair == pair || time.Unix(unixTimeSeconds, 0).Before(time.Now().UTC()) {
-			err = p.RedisClient.LRem("valid__" + username, 0, pair).Err()
+			err = p.RedisClient.LRem("valid__"+username, 0, pair).Err()
 			if err != nil {
 				return err
 			}
 		}
-		
+
 	}
 	return nil
 }
 
 func (p inMemorySessionPersistance) Store(username string, token string, exp int64) error {
 	values := []string{token, strconv.FormatInt(exp, 10)}
-	return p.RedisClient.RPush("valid__" + username, strings.Join(values, ",")).Err()
+	return p.RedisClient.RPush("valid__"+username, strings.Join(values, ",")).Err()
 }
 
-func (p inMemorySessionPersistance) BlackListAll(username string) error{
-	list, err := p.RedisClient.LRange("valid__" + username, 0, -1).Result()
+func (p inMemorySessionPersistance) BlackListAll(username string) error {
+	list, err := p.RedisClient.LRange("valid__"+username, 0, -1).Result()
 	if err != nil {
 		return err
 	}
@@ -136,13 +136,13 @@ func (p inMemorySessionPersistance) BlackListAll(username string) error{
 			return err
 		}
 
-		err = p.RedisClient.LRem("valid__" + username, 0, pair).Err()
+		err = p.RedisClient.LRem("valid__"+username, 0, pair).Err()
 		if err != nil {
 			return err
 		}
 
 		if time.Unix(unixTimeSeconds, 0).After(time.Now().UTC()) {
-			err = p.RedisClient.RPush("invalid__" + username, pair).Err()
+			err = p.RedisClient.RPush("invalid__"+username, pair).Err()
 			if err != nil {
 				return err
 			}
@@ -151,6 +151,6 @@ func (p inMemorySessionPersistance) BlackListAll(username string) error{
 	return nil
 }
 
-func (p inMemorySessionPersistance) Persist() error  {
+func (p inMemorySessionPersistance) Persist() error {
 	return p.RedisClient.BgSave().Err()
 }

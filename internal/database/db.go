@@ -35,7 +35,7 @@ func Connect(addr string, user string, password string, dbName string) (*pg.DB, 
 		User:     user,
 		Password: password,
 		Database: dbName,
-		Addr: addr,
+		Addr:     addr,
 	})
 
 	_, err := db.Exec("SELECT 1")

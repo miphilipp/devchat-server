@@ -2,9 +2,10 @@ package database
 
 import (
 	//"fmt"
+	"errors"
 	"strings"
 	"time"
-	"errors"
+
 	"github.com/go-pg/pg/v9"
 	"github.com/google/uuid"
 	core "github.com/miphilipp/devchat-server/internal"
@@ -22,7 +23,7 @@ func (r *userRepository) CompareCredentials(userID int, password string) (int, e
 		"SELECT id FROM public.user WHERE id = ? AND password = crypt(?, password) AND isdeleted = false;",
 		userID, password)
 
-	if errors.Is(err, pg.ErrNoRows)  {
+	if errors.Is(err, pg.ErrNoRows) {
 		return -1, nil
 	}
 
@@ -46,7 +47,7 @@ func (r *userRepository) IncrementFailedLoginAttempts(user string) error {
 	if res.RowsAffected() == 0 {
 		return core.ErrUserDoesNotExist
 	}
-	
+
 	return nil
 }
 
@@ -58,7 +59,6 @@ func (r *userRepository) DeleteUser(userid int) error {
 	return core.NewDataBaseError(err)
 }
 
-
 // DeleteUser sets the deleted flag to true and clears all sensetive user data.
 func (r *userRepository) SoftDeleteUser(userID int) error {
 	_, err := callStoredProcedure(r.db, "deleteAccount", userID)
@@ -68,32 +68,32 @@ func (r *userRepository) SoftDeleteUser(userID int) error {
 // CreateUser adds new user to the database
 func (r *userRepository) CreateUser(user core.User, password string) (core.User, error) {
 	userOutput := struct {
-		Name  			 string
-		Email 			 string
-		ID    			 int
+		Name             string
+		Email            string
+		ID               int
 		ConfirmationUUID uuid.UUID `pg: "confirmation_uuid"`
 		//languageCode string TODO: Implementieren
 	}{}
 	_, err := r.db.QueryOne(&userOutput,
 		`INSERT INTO public.user (name, email, password, confirmation_uuid) 
 		 VALUES (?, ?, crypt(?, gen_salt('bf')), uuid_generate_v4())
-		 RETURNING id, name, email, confirmation_uuid;`, 
-		 user.Name, user.Email, password)
+		 RETURNING id, name, email, confirmation_uuid;`,
+		user.Name, user.Email, password)
 
 	if err != nil {
 		return core.User{}, core.NewDataBaseError(err)
 	}
 	return core.User{
-		ID:    userOutput.ID,
-		Name:  userOutput.Name,
-		Email: userOutput.Email,
+		ID:               userOutput.ID,
+		Name:             userOutput.Name,
+		Email:            userOutput.Email,
 		ConfirmationUUID: userOutput.ConfirmationUUID,
 		//LanguageCode: userOutput.languageCode,
 	}, err
 }
 
 func (r *userRepository) RecoverPassword(recoveryUUID uuid.UUID, password string) (string, error) {
-	var username string 
+	var username string
 	_, err := r.db.QueryOne(&username,
 		`UPDATE public.user
 		SET 
@@ -112,8 +112,8 @@ func (r *userRepository) RecoverPassword(recoveryUUID uuid.UUID, password string
 	return username, nil
 }
 
-func (r *userRepository) SelectRecoveryTokenIssueDate(recoveryUUID uuid.UUID) (time.Time, error)  {
-	var recoveryTokenIssueDate time.Time 
+func (r *userRepository) SelectRecoveryTokenIssueDate(recoveryUUID uuid.UUID) (time.Time, error) {
+	var recoveryTokenIssueDate time.Time
 	_, err := r.db.QueryOne(&recoveryTokenIssueDate,
 		`SELECT recovery_uuid_issue_date
 		FROM public.user 
@@ -136,14 +136,14 @@ func (r *userRepository) CreateRecoverID(emailAddress string) (uuid.UUID, error)
 		 WHERE email = ? AND isdeleted = false
 		 RETURNING recovery_uuid;`, emailAddress)
 
-	if errors.Is(err, pg.ErrNoRows)  {
+	if errors.Is(err, pg.ErrNoRows) {
 		return updatedUUID, core.ErrUserDoesNotExist
 	}
 
 	if err != nil {
 		return updatedUUID, core.NewDataBaseError(err)
 	}
-	
+
 	return updatedUUID, nil
 }
 
@@ -154,7 +154,7 @@ func (r *userRepository) SetPassword(user int, newPassword string) error {
 	if err != nil {
 		return core.NewDataBaseError(err)
 	}
-	
+
 	if res.RowsAffected() == 0 {
 		return core.ErrUserDoesNotExist
 	}
@@ -185,7 +185,7 @@ func (r *userRepository) GetUserForID(userID int) (core.User, error) {
 	}, nil
 }
 
-func (r *userRepository) SetConfirmationIDToNULL(token string) (string, error)  {
+func (r *userRepository) SetConfirmationIDToNULL(token string) (string, error) {
 	var username string
 	_, err := r.db.QueryOne(&username,
 		`UPDATE public.user SET confirmation_uuid = NULL
@@ -194,19 +194,19 @@ func (r *userRepository) SetConfirmationIDToNULL(token string) (string, error)  
 	if err != nil {
 		return "", core.NewDataBaseError(err)
 	}
-	
+
 	return username, nil
 }
 
 func (r *userRepository) GetUserForName(name string) (core.User, error) {
 	userOutput := struct {
-		Name  				string
-		Email 				string
-		ID    				int
-		FailedLoginAttempts int 		`pg:"failedloginattempts"`
-		LockedOutSince 		time.Time 	`pg:"lockedoutsince"`
-		LastFailedLogin 	time.Time	`pg:"lastfailedlogin"`
-		IsDeleted			bool		`pg:"isdeleted"`
+		Name                string
+		Email               string
+		ID                  int
+		FailedLoginAttempts int       `pg:"failedloginattempts"`
+		LockedOutSince      time.Time `pg:"lockedoutsince"`
+		LastFailedLogin     time.Time `pg:"lastfailedlogin"`
+		IsDeleted           bool      `pg:"isdeleted"`
 		//languageCode string TODO: Implementieren
 	}{}
 	_, err := r.db.QueryOne(&userOutput,
@@ -220,13 +220,13 @@ func (r *userRepository) GetUserForName(name string) (core.User, error) {
 		return core.User{}, core.NewDataBaseError(err)
 	}
 	return core.User{
-		ID:    userOutput.ID,
-		Name:  userOutput.Name,
-		Email: userOutput.Email,
-		LockedOutSince: userOutput.LockedOutSince,
+		ID:                  userOutput.ID,
+		Name:                userOutput.Name,
+		Email:               userOutput.Email,
+		LockedOutSince:      userOutput.LockedOutSince,
 		FailedLoginAttempts: userOutput.FailedLoginAttempts,
-		LastFailedLogin: userOutput.LastFailedLogin,
-		IsDeleted: userOutput.IsDeleted,
+		LastFailedLogin:     userOutput.LastFailedLogin,
+		IsDeleted:           userOutput.IsDeleted,
 		//LanguageCode: userOutput.languageCode,
 	}, nil
 }
@@ -274,11 +274,11 @@ func (r *userRepository) UnlockUser(userID int) error {
 	if res.RowsAffected() == 0 {
 		return core.ErrUserDoesNotExist
 	}
-	
+
 	return nil
 }
 
-func (r *userRepository) UpdateOnlineState(userID int, state bool) error  {
+func (r *userRepository) UpdateOnlineState(userID int, state bool) error {
 	res, err := r.db.Exec(
 		`UPDATE public.user 
 		SET isonline = ? 
@@ -291,7 +291,7 @@ func (r *userRepository) UpdateOnlineState(userID int, state bool) error  {
 	if res.RowsAffected() == 0 {
 		return core.ErrUserDoesNotExist
 	}
-	
+
 	return nil
 }
 

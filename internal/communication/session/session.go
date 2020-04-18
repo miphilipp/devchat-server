@@ -4,6 +4,7 @@ import (
 	"time"
 	//"fmt"
 	"errors"
+
 	jwt "github.com/dgrijalva/jwt-go"
 	core "github.com/miphilipp/devchat-server/internal"
 )
@@ -14,13 +15,13 @@ const (
 
 type SessionManager struct {
 	persistance SessionPersistance
-	ttl time.Duration
+	ttl         time.Duration
 }
 
 func NewSessionManager(persistance SessionPersistance) *SessionManager {
 	return &SessionManager{
 		persistance: persistance,
-		ttl: 7 * 24 * time.Hour,
+		ttl:         7 * 24 * time.Hour,
 	}
 }
 
@@ -56,7 +57,7 @@ func (s *SessionManager) GetToken(name string) (string, error) {
 	exp := time.Now().UTC().Add(s.ttl).Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"name": name,
-		"exp": exp,
+		"exp":  exp,
 	})
 	tokenString, err := token.SignedString(secret)
 

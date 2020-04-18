@@ -5,46 +5,46 @@ import (
 )
 
 var (
-	ErrFeatureDeactivated = ApiError{1023, "This feature is currently not availiable"}
-	ErrAccountNotConfirmed = ApiError{1022, "Account hasn't been confirmed yet"}
-	ErrAuthFailed = ApiError{1020, "User cannot be authenticated"}
-	ErrRequestLimitExceeed = ApiError{1019, "The client exceeded the request limit."}
-	ErrInvalidFileType = ApiError{1018, "File type not allowed"}
-	ErrUnknownError = ApiError{1000, "An unexpected error occured."}
-	ErrDataBase = ApiError{1008, "Some unexepected error occured within the datatbase."}
-	ErrAccessDenied = ApiError{1006, "Access denied"}
-	ErrRequireJSON = ApiError{1014, "JSON format required"}
-	ErrAlreadyExists = ApiError{1021, "Ressource alread exists"}
-	ErrUnsupportedMethod = ApiError{1017, "Unsupported method"}
-	ErrNothingChanged = ApiError{1007, "This action had no effect"}
-	ErrLockedOut = ApiError{1005, "User Locked out"}
-	ErrNoResultFromDB = ApiError{1004, "No rows returned"}
-	ErrInvalidMessageType = ApiError{10, "This message type is not implemented."}
-	ErrUserDoesNotExist = ApiError{1001, "No such user"}
-	ErrExpired = ApiError{1015, "Ressource expired"}
-	ErrInvalidToken = ApiError{1016, "Invalid token"}
-	ErrRessourceDoesNotExist = ApiError{1013, "The requested ressource does not exist."}
-	ErrConversationDoesNotExist = ApiError{1009, "No such conversation"}
-	ErrMessageTypeNotImplemented = ApiError{1003, "This message type was not implemented"}
+	ErrFeatureDeactivated             = ApiError{1023, "This feature is currently not availiable"}
+	ErrAccountNotConfirmed            = ApiError{1022, "Account hasn't been confirmed yet"}
+	ErrAuthFailed                     = ApiError{1020, "User cannot be authenticated"}
+	ErrRequestLimitExceeed            = ApiError{1019, "The client exceeded the request limit."}
+	ErrInvalidFileType                = ApiError{1018, "File type not allowed"}
+	ErrUnknownError                   = ApiError{1000, "An unexpected error occured."}
+	ErrDataBase                       = ApiError{1008, "Some unexepected error occured within the datatbase."}
+	ErrAccessDenied                   = ApiError{1006, "Access denied"}
+	ErrRequireJSON                    = ApiError{1014, "JSON format required"}
+	ErrAlreadyExists                  = ApiError{1021, "Ressource alread exists"}
+	ErrUnsupportedMethod              = ApiError{1017, "Unsupported method"}
+	ErrNothingChanged                 = ApiError{1007, "This action had no effect"}
+	ErrLockedOut                      = ApiError{1005, "User Locked out"}
+	ErrNoResultFromDB                 = ApiError{1004, "No rows returned"}
+	ErrInvalidMessageType             = ApiError{10, "This message type is not implemented."}
+	ErrUserDoesNotExist               = ApiError{1001, "No such user"}
+	ErrExpired                        = ApiError{1015, "Ressource expired"}
+	ErrInvalidToken                   = ApiError{1016, "Invalid token"}
+	ErrRessourceDoesNotExist          = ApiError{1013, "The requested ressource does not exist."}
+	ErrConversationDoesNotExist       = ApiError{1009, "No such conversation"}
+	ErrMessageTypeNotImplemented      = ApiError{1003, "This message type was not implemented"}
 	ErrPasswordDoesNotMeetRequiremens = ApiError{1002, "The proposed password does not meet the requirements"}
 )
 
 // ApiError
 type ApiError struct {
-	Code int			`json:"code"`
-	Message string  	`json:"message"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
 }
 
 func (e ApiError) Error() string { return e.Message }
 
 // ToJSON converts an ApiError to JSON.
-func (e ApiError) ToJSON() []byte { 
+func (e ApiError) ToJSON() []byte {
 	json, _ := json.Marshal(e)
-	return json 
+	return json
 }
 
 type RequestLimitExceededError struct {
-	Err ApiError
+	Err       ApiError
 	RateLimit map[string]int
 }
 
@@ -53,17 +53,17 @@ func (e RequestLimitExceededError) Error() string { return e.Err.Error() }
 // DataBaseError combines core.ErrDataBase with a generic error return from a database.
 type DataBaseError struct {
 	APIError ApiError
-	Err error
+	Err      error
 }
 
 // NewDataBaseError creates and returns a DataBaseError based on some error.
-func NewDataBaseError(err error) error  {
+func NewDataBaseError(err error) error {
 	if err == nil {
 		return nil
 	}
 	return DataBaseError{
 		APIError: ErrDataBase,
-		Err: err,
+		Err:      err,
 	}
 }
 
@@ -100,13 +100,13 @@ func NewPathFormatError(message string) ApiError {
 }
 
 // NewRequestLimitExceededError creates an new RequestLimitExceededError
-func NewRequestLimitExceededError(retryAfter, remaining, limit, resetAfter int) RequestLimitExceededError { 
+func NewRequestLimitExceededError(retryAfter, remaining, limit, resetAfter int) RequestLimitExceededError {
 	return RequestLimitExceededError{
 		Err: ErrRequestLimitExceeed,
 		RateLimit: map[string]int{
 			"retryAfter": retryAfter,
-			"remaining":   remaining,
-			"limit": limit,
+			"remaining":  remaining,
+			"limit":      limit,
 			"resetAfter": resetAfter,
 		},
 	}

@@ -3,8 +3,9 @@ package messaging
 import (
 	//"fmt"
 	"encoding/json"
-	"github.com/sergi/go-diff/diffmatchpatch"
+
 	core "github.com/miphilipp/devchat-server/internal"
+	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
 type Service interface {
@@ -19,18 +20,18 @@ type Service interface {
 }
 
 type service struct {
-	messageRepo core.MessageRepo
+	messageRepo      core.MessageRepo
 	conversationRepo core.ConversationRepo
 }
 
 type messageStub struct {
-	Type 			int  `json:"type"`
-	ID 				int	`json:"id"`
+	Type int `json:"type"`
+	ID   int `json:"id"`
 }
 
-func NewService(messageRepo core.MessageRepo, conversationRepo core.ConversationRepo) Service  {
+func NewService(messageRepo core.MessageRepo, conversationRepo core.ConversationRepo) Service {
 	return &service{
-		messageRepo: messageRepo,
+		messageRepo:      messageRepo,
 		conversationRepo: conversationRepo,
 	}
 }
@@ -62,7 +63,7 @@ func (s *service) ToggleLiveSession(userCtx, conversationID int, state bool, msg
 	if state == false {
 		err = s.messageRepo.SetLockedSateForCodeMessage(stub.ID, 0)
 	} else if message.LockedBy == 0 {
-		err = s.messageRepo.SetLockedSateForCodeMessage(stub.ID, userCtx) 
+		err = s.messageRepo.SetLockedSateForCodeMessage(stub.ID, userCtx)
 	}
 
 	return message.ID, err
@@ -88,7 +89,7 @@ func (s *service) ReadMessages(userID int, message json.RawMessage) error {
 	return s.messageRepo.SetReadFlags(userID, payload.ConversationID)
 }
 
-func (s *service) SendMessage(target, userID int, message json.RawMessage) (interface{}, error)  {
+func (s *service) SendMessage(target, userID int, message json.RawMessage) (interface{}, error) {
 	isMember, err := s.conversationRepo.IsUserInConversation(userID, target)
 	if err != nil {
 		return nil, err
@@ -138,10 +139,10 @@ func (s *service) SendMessage(target, userID int, message json.RawMessage) (inte
 }
 
 func (s *service) ListAllMessages(
-	userID int, 
-	conversationID int, 
-	beforeInSequence int, 
-	limit int, 
+	userID int,
+	conversationID int,
+	beforeInSequence int,
+	limit int,
 	mType core.MessageType) ([]interface{}, error) {
 	isMember, err := s.conversationRepo.IsUserInConversation(userID, conversationID)
 	if err != nil {
@@ -157,9 +158,10 @@ func (s *service) ListAllMessages(
 		return s.messageRepo.FindCodeMessagesForConversation(conversationID, beforeInSequence, limit)
 	case core.TextMessageType:
 		return s.messageRepo.FindTextMessagesForConversation(conversationID, beforeInSequence, limit)
-	case core.UndefinedMesssageType: 
+	case core.UndefinedMesssageType:
 		return s.messageRepo.FindForConversation(conversationID, beforeInSequence, limit)
-	default: return nil, core.ErrInvalidMessageType
+	default:
+		return nil, core.ErrInvalidMessageType
 	}
 }
 
@@ -167,11 +169,10 @@ func (s *service) ListProgrammingLanguages() ([]core.ProgrammingLanguage, error)
 	return s.messageRepo.FindAllProgrammingLanguages()
 }
 
-
 type patchData struct {
-	MessageID int	 `json:"messageId"`	
-	Patch 	  string `json:"patch"`
-	Title 	  string `json:"title"`
+	MessageID int    `json:"messageId"`
+	Patch     string `json:"patch"`
+	Title     string `json:"title"`
 	Language  string `json:"language"`
 }
 
@@ -205,16 +206,15 @@ func (s *service) applyPatchDataToCodeMessage(userCtx, conversationID int, patch
 		updatedLanguage = patchData.Language
 	}
 
-
 	err = s.messageRepo.UpdateCode(patchData.MessageID, updatedCode, updatedTitle, updatedLanguage)
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 
-func (s *service) EditMessage(userCtx, conversationID int, message json.RawMessage) (int, error)  {
+func (s *service) EditMessage(userCtx, conversationID int, message json.RawMessage) (int, error) {
 	isMember, err := s.conversationRepo.IsUserInConversation(userCtx, conversationID)
 	if err != nil {
 		return 0, err
@@ -289,8 +289,10 @@ func (s *service) GetMessage(userCtx, conversationID, messageID int) (interface{
 	}
 
 	switch messageFromDB.Type {
-	case core.CodeMessageType: return s.messageRepo.FindCodeMessageForID(messageID, conversationID)
-	case core.TextMessageType: return s.messageRepo.FindTextMessageForID(messageID, conversationID)
+	case core.CodeMessageType:
+		return s.messageRepo.FindCodeMessageForID(messageID, conversationID)
+	case core.TextMessageType:
+		return s.messageRepo.FindTextMessageForID(messageID, conversationID)
 	default:
 		return nil, core.ErrMessageTypeNotImplemented
 	}

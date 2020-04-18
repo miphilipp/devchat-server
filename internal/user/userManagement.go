@@ -2,10 +2,11 @@ package user
 
 import (
 	"fmt"
-	"time"
 	"io/ioutil"
 	"os"
 	"syscall"
+	"time"
+
 	"github.com/google/uuid"
 
 	core "github.com/miphilipp/devchat-server/internal"
@@ -15,7 +16,7 @@ type Service interface {
 	GetUserForName(name string) (core.User, error)
 	SearchUsers(prefix string) ([]core.User, error)
 	GetUserForID(id int) (core.User, error)
-	
+
 	AuthenticateUser(username, password string) (int, error)
 	ChangePassword(userid int, oldPassword, newPassword string) error
 	ChangeOnlineState(userCtx int, state bool) error
@@ -32,16 +33,16 @@ type Service interface {
 }
 
 type service struct {
-	repo 					 core.UserRepo
-	mailing 				 core.MailingService
-	lockOutTimeMinutes 		 int
-	nLoginAttempts 			 int
+	repo                     core.UserRepo
+	mailing                  core.MailingService
+	lockOutTimeMinutes       int
+	nLoginAttempts           int
 	passwordResetTimeMinutes int
 }
 
-func NewService(repo core.UserRepo, mailing core.MailingService) Service  {
+func NewService(repo core.UserRepo, mailing core.MailingService) Service {
 	return &service{
-		repo: repo,
+		repo:    repo,
 		mailing: mailing,
 	}
 }
@@ -53,7 +54,7 @@ func (s *service) SaveAvatar(filePath, fileType string, buffer []byte) error {
 
 	err := ioutil.WriteFile(filePath, buffer, 0644)
 	if err != nil {
-        return err
+		return err
 	}
 	return nil
 }
@@ -89,10 +90,10 @@ func (s *service) AuthenticateUser(username, password string) (int, error) {
 		return -1, core.ErrAccountNotConfirmed
 	}
 
-	if !user.LockedOutSince.IsZero() && user.LockedOutSince.Add(time.Minute * 5).After(time.Now().UTC()) {
+	if !user.LockedOutSince.IsZero() && user.LockedOutSince.Add(time.Minute*5).After(time.Now().UTC()) {
 		return -1, core.ErrLockedOut
 	}
-	
+
 	id, err := s.repo.CompareCredentials(user.ID, password)
 	if err != nil {
 		return -1, err
@@ -105,7 +106,7 @@ func (s *service) AuthenticateUser(username, password string) (int, error) {
 				return -1, err
 			}
 
-			if user.FailedLoginAttempts + 1 > 5 {
+			if user.FailedLoginAttempts+1 > 5 {
 				_ = s.repo.LockUser(user.ID)
 				return -1, core.ErrLockedOut
 			}
@@ -123,7 +124,7 @@ func (s *service) AuthenticateUser(username, password string) (int, error) {
 	if err != nil {
 		return -1, err
 	}
-	
+
 	return id, nil
 }
 
@@ -156,7 +157,7 @@ func (s *service) CreateAccount(newUser core.User, password, serverAddr string) 
 	if err != core.ErrUserDoesNotExist {
 		return core.ErrAlreadyExists
 	}
-	
+
 	if checkPasswordPolicy(password) {
 		return core.ErrPasswordDoesNotMeetRequiremens
 	}
@@ -176,7 +177,7 @@ func (s *service) CreateAccount(newUser core.User, password, serverAddr string) 
 }
 
 func (s *service) ConfirmAccount(token string) (string, error) {
-	return s.repo.SetConfirmationIDToNULL(token) 
+	return s.repo.SetConfirmationIDToNULL(token)
 }
 
 func (s *service) ChangePassword(userid int, oldPassword, newPassword string) error {
@@ -197,10 +198,10 @@ func (s *service) ChangePassword(userid int, oldPassword, newPassword string) er
 	return nil
 }
 
-func (s *service) sendConfirmationRequest(emailAddress string, confirmationUUID uuid.UUID, baseURL string) error {	
-	body := 
+func (s *service) sendConfirmationRequest(emailAddress string, confirmationUUID uuid.UUID, baseURL string) error {
+	body :=
 		"Bitte klicken Sie diesen Link um Ihr Konto zu bestätigen: \r\n" +
-		fmt.Sprintf("%s/confirm?token=%s\r\n", baseURL, confirmationUUID.String())
+			fmt.Sprintf("%s/confirm?token=%s\r\n", baseURL, confirmationUUID.String())
 	err := s.mailing.SendEmail(emailAddress, "DevChat-Kontoverwaltung", body)
 	if err != nil {
 		return err
@@ -211,7 +212,7 @@ func (s *service) sendConfirmationRequest(emailAddress string, confirmationUUID 
 
 // checkPasswordPolicy returns true when the requirements are not met,
 // otherwise false.
-func checkPasswordPolicy(password string) bool  {
+func checkPasswordPolicy(password string) bool {
 	if len(password) < 6 {
 		return true
 	}

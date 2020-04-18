@@ -3,6 +3,7 @@ package database
 import (
 	//"fmt"
 	"errors"
+
 	"github.com/go-pg/pg/v9"
 	core "github.com/miphilipp/devchat-server/internal"
 )
@@ -39,7 +40,7 @@ func (r *conversationRepository) FindConversations() ([]core.Conversation, error
 	conversations := make([]core.Conversation, 0, 2)
 	_, err := r.db.Query(&conversations, `
 			SELECT id as ID, title as Title, repourl as Repourl FROM conversation;`)
-	
+
 	return conversations, core.NewDataBaseError(err)
 }
 
@@ -54,9 +55,9 @@ func (r *conversationRepository) CreateConversation(userCtx int, c core.Conversa
 	}
 
 	return core.Conversation{
-		Title: c.Title,
-		ID: insertedID,         
-		Repourl: c.Repourl,    
+		Title:   c.Title,
+		ID:      insertedID,
+		Repourl: c.Repourl,
 	}, nil
 }
 
@@ -76,14 +77,14 @@ func (r *conversationRepository) DeleteConversation(id int) error {
 
 func (r *conversationRepository) FindInvitations(userCtx int) ([]core.Invitation, error) {
 	model := []struct {
-		ConversationID    int	 `pg:"conversationid"`
+		ConversationID    int    `pg:"conversationid"`
 		ConversationTitle string `pg:"conversationtitle"`
-		Recipient		  int	 `pg:"recipient"`
+		Recipient         int    `pg:"recipient"`
 	}{}
 
 	_, err := r.db.Query(&model,
-		`SELECT conversationId, conversationTitle, recipient FROM v_invitation WHERE recipient = ?;`, 
-	userCtx)
+		`SELECT conversationId, conversationTitle, recipient FROM v_invitation WHERE recipient = ?;`,
+		userCtx)
 	if err != nil {
 		return nil, core.NewDataBaseError(err)
 	}
@@ -126,13 +127,13 @@ func (r *conversationRepository) MarkAsJoined(userID int, conversationID int) (i
 
 func (r *conversationRepository) FindConversationForID(conversationID int) (core.Conversation, error) {
 	c := struct {
-		ID int
-		Title string
+		ID      int
+		Title   string
 		RepoURL string `pg:"repourl"`
 	}{}
-	_, err := r.db.QueryOne(&c, 
-		`SELECT id, title, repourl FROM public.conversation WHERE id = ?;`, 
-	conversationID)
+	_, err := r.db.QueryOne(&c,
+		`SELECT id, title, repourl FROM public.conversation WHERE id = ?;`,
+		conversationID)
 	if errors.Is(err, pg.ErrNoRows) {
 		return core.Conversation{}, core.ErrConversationDoesNotExist
 	}
@@ -142,17 +143,17 @@ func (r *conversationRepository) FindConversationForID(conversationID int) (core
 	}
 
 	return core.Conversation{
-		Title: c.Title,
-		ID: c.ID,
+		Title:   c.Title,
+		ID:      c.ID,
 		Repourl: c.RepoURL,
 	}, nil
 }
 
 func (r *conversationRepository) SetMetaDataOfConversation(conversation core.Conversation) error {
-	_, err := r.db.ExecOne( 
+	_, err := r.db.ExecOne(
 		`UPDATE public.conversation
 		SET title = ?, repourl = ?
-		WHERE id = ?;`, 
+		WHERE id = ?;`,
 		conversation.Title, conversation.Repourl, conversation.ID)
 	if err == pg.ErrNoRows {
 		return core.ErrConversationDoesNotExist
@@ -178,8 +179,8 @@ func (r *conversationRepository) GetUsersInConversation(conversationID int) ([]c
 func (r *conversationRepository) IsUserInConversation(userID int, conversationID int) (bool, error) {
 	var res int
 	_, err := r.db.Query(&res,
-		`SELECT COUNT(*) FROM v_joined_member WHERE userid = ? AND conversationId = ?;`, 
-	userID, conversationID)
+		`SELECT COUNT(*) FROM v_joined_member WHERE userid = ? AND conversationId = ?;`,
+		userID, conversationID)
 	if err != nil {
 		return false, core.NewDataBaseError(err)
 	}
@@ -190,8 +191,8 @@ func (r *conversationRepository) IsUserInConversation(userID int, conversationID
 func (r *conversationRepository) IsUserAdminOfConveration(userID int, conversationID int) (bool, error) {
 	var res int
 	_, err := r.db.Query(&res,
-		`SELECT COUNT(*) FROM v_admin WHERE userid = ? AND conversationId = ?;`, 
-	userID, conversationID)
+		`SELECT COUNT(*) FROM v_admin WHERE userid = ? AND conversationId = ?;`,
+		userID, conversationID)
 	if err != nil {
 		return false, core.NewDataBaseError(err)
 	}
@@ -199,7 +200,7 @@ func (r *conversationRepository) IsUserAdminOfConveration(userID int, conversati
 	return res == 1, nil
 }
 
-func (r *conversationRepository) CountAdminsOfConversation(conversationID int) (int, error)  {
+func (r *conversationRepository) CountAdminsOfConversation(conversationID int) (int, error) {
 	var numberOfAdmins int
 	_, err := r.db.QueryOne(&numberOfAdmins,
 		`SELECT count(*) FROM v_admin WHERE conversationId = ?;`,

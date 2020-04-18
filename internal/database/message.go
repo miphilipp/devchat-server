@@ -25,7 +25,7 @@ func (r *messageRepository) StoreTextMessage(conversation int, user int, m core.
 
 func (r *messageRepository) StoreCodeMessage(conversation int, user int, m core.CodeMessage) (int, error) {
 	var id = -1
-	_, err := callFunction(r.db, "createCodeMessage", &id, user, conversation,  m.Code, m.Sentdate, m.Language, m.Title)
+	_, err := callFunction(r.db, "createCodeMessage", &id, user, conversation, m.Code, m.Sentdate, m.Language, m.Title)
 	if err != nil {
 		return 0, core.NewDataBaseError(err)
 	}
@@ -40,7 +40,7 @@ func (r *messageRepository) UpdateCode(messageID int, newCode, title, language s
 	if err != nil {
 		return core.NewDataBaseError(err)
 	}
-	
+
 	if res.RowsAffected() == 0 {
 		return core.ErrRessourceDoesNotExist
 	}
@@ -55,21 +55,20 @@ func (r *messageRepository) SetReadFlags(userid int, conversationID int) error {
 	if err != nil {
 		return core.NewDataBaseError(err)
 	}
-	
+
 	if res.RowsAffected() == 0 {
 		return core.ErrRessourceDoesNotExist
 	}
-	return nil	
+	return nil
 }
 
-
 func containsID(stubs []messageStub, id int) bool {
-    for _, s := range stubs {
-        if s.ID == id {
-            return true
-        }
-    }
-    return false
+	for _, s := range stubs {
+		if s.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 func getLargestID(arr []messageStub) int {
@@ -78,22 +77,22 @@ func getLargestID(arr []messageStub) int {
 	}
 
 	largestID := arr[0].ID
-    for _, s := range arr {
-        if s.ID > largestID {
+	for _, s := range arr {
+		if s.ID > largestID {
 			largestID = s.ID
-        }
-    }
-    return largestID
+		}
+	}
+	return largestID
 }
 
 type messageStub struct {
 	Type core.MessageType
-	ID int
+	ID   int
 }
 
 func (r *messageRepository) FindForConversation(
-	conversationID int, 
-	beforeInSequence int, 
+	conversationID int,
+	beforeInSequence int,
 	limit int) ([]interface{}, error) {
 	stubs := make([]messageStub, 0, 10)
 	_, err := r.db.Query(&stubs,
@@ -132,7 +131,7 @@ func (r *messageRepository) FindForConversation(
 		return make([]interface{}, 0), core.NewDataBaseError(err)
 	}
 
-	messages := make([]interface{core.Sequencable}, 0, len(codeMessages) + len(textMessages))
+	messages := make([]interface{ core.Sequencable }, 0, len(codeMessages)+len(textMessages))
 	for _, m := range codeMessages {
 		if containsID(stubs, m.ID) {
 			messages = append(messages, m)
@@ -157,8 +156,8 @@ func (r *messageRepository) FindForConversation(
 }
 
 func (r *messageRepository) FindCodeMessagesForConversation(
-	conversationID int, 
-	beforeInSequence int, 
+	conversationID int,
+	beforeInSequence int,
 	limit int) ([]interface{}, error) {
 
 	codeMessages := make([]core.CodeMessage, 0, 10)
@@ -218,8 +217,8 @@ func (r *messageRepository) FindTextMessageForID(messageID, conversationID int) 
 }
 
 func (r *messageRepository) FindTextMessagesForConversation(
-	conversationID int, 
-	beforeInSequence int, 
+	conversationID int,
+	beforeInSequence int,
 	limit int) ([]interface{}, error) {
 
 	textMessages := make([]core.TextMessage, 0, 10)
@@ -242,7 +241,7 @@ func (r *messageRepository) FindTextMessagesForConversation(
 	return messagesI, nil
 }
 
-func (r *messageRepository) FindMessageStubForConversation(conversationID int, messageID int) (core.Message, error)  {
+func (r *messageRepository) FindMessageStubForConversation(conversationID int, messageID int) (core.Message, error) {
 	var message core.Message
 	_, err := r.db.QueryOne(&message,
 		`SELECT m.type, m.id, m.sentdate, u.name as "Author"
@@ -278,7 +277,7 @@ func NewMessageRepository(dbSession *pg.DB) core.MessageRepo {
 	return &messageRepository{db: dbSession}
 }
 
-func (r *messageRepository) SetLockedSateForCodeMessage(messageID, lockingUserID int) error  {
+func (r *messageRepository) SetLockedSateForCodeMessage(messageID, lockingUserID int) error {
 	var id interface{}
 	if lockingUserID > 0 {
 		id = lockingUserID

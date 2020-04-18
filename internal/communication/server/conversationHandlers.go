@@ -9,8 +9,8 @@ import (
 
 	"github.com/go-kit/kit/log/level"
 	"github.com/gorilla/mux"
-	"github.com/miphilipp/devchat-server/internal/communication/websocket"
 	core "github.com/miphilipp/devchat-server/internal"
+	"github.com/miphilipp/devchat-server/internal/communication/websocket"
 )
 
 func (s *Webserver) deleteConversation(writer http.ResponseWriter, request *http.Request) {
@@ -28,16 +28,16 @@ func (s *Webserver) deleteConversation(writer http.ResponseWriter, request *http
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
 	s.socket.BroadcastToRoom(
-		conversationID, 
+		conversationID,
 		websocket.RESTCommand{
 			Ressource: "conversation",
-			Method: websocket.DeleteCommandMethod,
-		}, 
+			Method:    websocket.DeleteCommandMethod,
+		},
 		conversationID,
 		-1,
 	)
@@ -48,11 +48,10 @@ func (s *Webserver) deleteConversation(writer http.ResponseWriter, request *http
 func (s *Webserver) postConversation(writer http.ResponseWriter, request *http.Request) {
 	userID := request.Context().Value("UserID").(int)
 	requestBody := struct {
-		Title string		  `json:"title"`
-		Repourl string		  `json:"repoUrl"`
-		InitialMembers []int `json:"initialMembers"`
-	}{ Title: "-" }
-	 
+		Title          string `json:"title"`
+		Repourl        string `json:"repoUrl"`
+		InitialMembers []int  `json:"initialMembers"`
+	}{Title: "-"}
 
 	err := json.NewDecoder(request.Body).Decode(&requestBody)
 	if err != nil {
@@ -69,7 +68,7 @@ func (s *Webserver) postConversation(writer http.ResponseWriter, request *http.R
 	}
 
 	createdConversation, err := s.conversationService.CreateConversation(
-		userID, 
+		userID,
 		requestBody.Title,
 		requestBody.Repourl,
 		requestBody.InitialMembers,
@@ -77,7 +76,7 @@ func (s *Webserver) postConversation(writer http.ResponseWriter, request *http.R
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
@@ -86,16 +85,16 @@ func (s *Webserver) postConversation(writer http.ResponseWriter, request *http.R
 			continue
 		}
 		invitation := core.Invitation{
-			ConversationID: createdConversation.ID,
+			ConversationID:    createdConversation.ID,
 			ConversationTitle: createdConversation.Title,
-			Recipient: member,		 
+			Recipient:         member,
 		}
 		s.socket.SendToClient(
 			member, -1, 0,
 			websocket.RESTCommand{
 				Ressource: "invitation",
-				Method: websocket.PostCommandMethod,
-			}, 
+				Method:    websocket.PostCommandMethod,
+			},
 			invitation,
 		)
 	}
@@ -104,7 +103,7 @@ func (s *Webserver) postConversation(writer http.ResponseWriter, request *http.R
 
 	reply := struct {
 		ID int `json:"id"`
-	}{ ID: createdConversation.ID }
+	}{ID: createdConversation.ID}
 
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
@@ -123,8 +122,8 @@ func (s *Webserver) patchConversation(writer http.ResponseWriter, request *http.
 	}
 
 	patchData := struct {
-		Title string	`json:"title"`
-		RepoURL string  `json:"repoURL"`
+		Title   string `json:"title"`
+		RepoURL string `json:"repoURL"`
 	}{}
 
 	err = json.NewDecoder(request.Body).Decode(&patchData)
@@ -136,31 +135,31 @@ func (s *Webserver) patchConversation(writer http.ResponseWriter, request *http.
 	}
 
 	patchedConversation, err := s.conversationService.EditConversation(userContext, core.Conversation{
-		ID: conversationID,
-		Title: patchData.Title,
+		ID:      conversationID,
+		Title:   patchData.Title,
 		Repourl: patchData.RepoURL,
 	})
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
 	reply := struct {
-		Title string 		`json:"title"`
-		RepoURL string 		`json:"repoURL"`
+		Title   string `json:"title"`
+		RepoURL string `json:"repoURL"`
 	}{
-		Title: patchedConversation.Title,
+		Title:   patchedConversation.Title,
 		RepoURL: patchedConversation.Repourl,
 	}
 
 	s.socket.BroadcastToRoom(
-		conversationID, 
+		conversationID,
 		websocket.RESTCommand{
 			Ressource: "conversation",
-			Method: websocket.PatchCommandMethod,
-		}, 
+			Method:    websocket.PatchCommandMethod,
+		},
 		reply,
 		-1,
 	)
@@ -176,7 +175,7 @@ func (s *Webserver) getConversation(writer http.ResponseWriter, request *http.Re
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
@@ -185,7 +184,7 @@ func (s *Webserver) getConversation(writer http.ResponseWriter, request *http.Re
 	json.NewEncoder(writer).Encode(conversations)
 }
 
-func (s *Webserver) deleteUserFromConversation(writer http.ResponseWriter, request *http.Request)  {
+func (s *Webserver) deleteUserFromConversation(writer http.ResponseWriter, request *http.Request) {
 	userContext := request.Context().Value("UserID").(int)
 	vars := mux.Vars(request)
 	conversationID, err := strconv.Atoi(vars["conversationID"])
@@ -227,7 +226,7 @@ func (s *Webserver) deleteUserFromConversation(writer http.ResponseWriter, reque
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
@@ -249,10 +248,10 @@ func (s *Webserver) getMembersOfConversation(writer http.ResponseWriter, request
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
-	
+
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(users)
@@ -267,17 +266,17 @@ func (s *Webserver) deleteSelfFromConversation(userID, conversationID, newAdmin 
 	s.socket.RemoveClientFromRoom(conversationID, userID)
 
 	reply := struct {
-		UserID 		   int `json:"userId"`
+		UserID         int `json:"userId"`
 		ConversationID int `json:"conversationId"`
-		NewAdminID	   int `json:"newAdminId"`
-	}{ userID, conversationID, newAdmin }
+		NewAdminID     int `json:"newAdminId"`
+	}{userID, conversationID, newAdmin}
 
 	s.socket.BroadcastToRoom(
-		conversationID, 
+		conversationID,
 		websocket.RESTCommand{
 			Ressource: "conversation/member",
-			Method: websocket.DeleteCommandMethod,
-		}, 
+			Method:    websocket.DeleteCommandMethod,
+		},
 		reply,
 		-1,
 	)
@@ -294,16 +293,16 @@ func (s *Webserver) deleteOtherUserFromConversation(userCtx, userID, conversatio
 	s.socket.RemoveClientFromRoom(conversationID, userID)
 
 	reply := struct {
-		UserID 		   int `json:"userId"`
+		UserID         int `json:"userId"`
 		ConversationID int `json:"conversationId"`
-	}{ userID, conversationID }
+	}{userID, conversationID}
 
 	s.socket.BroadcastToRoom(
-		conversationID, 
+		conversationID,
 		websocket.RESTCommand{
 			Ressource: "conversation/member",
-			Method: websocket.DeleteCommandMethod,
-		}, 
+			Method:    websocket.DeleteCommandMethod,
+		},
 		reply,
 		-1,
 	)
@@ -329,7 +328,6 @@ func (s *Webserver) patchAdminStatus(writer http.ResponseWriter, request *http.R
 		return
 	}
 
-
 	requestBody := struct {
 		State bool `json:"state"`
 	}{}
@@ -345,21 +343,21 @@ func (s *Webserver) patchAdminStatus(writer http.ResponseWriter, request *http.R
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		} 
+		}
 		return
 	}
 
 	reply := struct {
-		UserID int `json:"userId"`
+		UserID int  `json:"userId"`
 		State  bool `json:"state"`
-	}{ userID, requestBody.State }
+	}{userID, requestBody.State}
 
 	s.socket.BroadcastToRoom(
-		conversationID, 
+		conversationID,
 		websocket.RESTCommand{
 			Ressource: "conversation/member",
-			Method: websocket.PatchCommandMethod,
-		}, 
+			Method:    websocket.PatchCommandMethod,
+		},
 		reply,
 		-1,
 	)

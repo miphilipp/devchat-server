@@ -36,7 +36,7 @@ type service struct {
 }
 
 // NewService creates and returns new Service
-func NewService(conversationRepo core.ConversationRepo) Service  {
+func NewService(conversationRepo core.ConversationRepo) Service {
 	return &service{
 		conversationRepo: conversationRepo,
 	}
@@ -136,9 +136,9 @@ func (s *service) CreateConversation(userCtx int, title, repoURL string, initial
 	}
 
 	conversation := core.Conversation{
-		Title: title,
+		Title:   title,
 		Repourl: repoURL,
-		ID: -1,
+		ID:      -1,
 	}
 	return s.conversationRepo.CreateConversation(userCtx, conversation, initialMembers)
 }
@@ -215,15 +215,15 @@ func (s *service) EditConversation(userCtx int, conversation core.Conversation) 
 	if conversation.Title == "" {
 		conversation.Title = currentValues.Title
 	}
-	
+
 	err = s.conversationRepo.SetMetaDataOfConversation(conversation)
 	if err != nil {
 		return core.Conversation{}, err
 	}
 
 	return core.Conversation{
-		ID: conversation.ID,
-		Title: conversation.Title,
+		ID:      conversation.ID,
+		Title:   conversation.Title,
 		Repourl: conversation.Repourl,
 	}, nil
 }

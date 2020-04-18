@@ -22,7 +22,7 @@ func (s *Server) processPatchMessage(wrapper messageFrame, clientID int, msg jso
 
 	payload := struct {
 		MessageID int `json:"messageId"`
-	}{ messageID }
+	}{messageID}
 	s.BroadcastToRoom(wrapper.Source, wrapper.Command, payload, wrapper.ID)
 	return nil
 }

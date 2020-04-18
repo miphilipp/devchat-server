@@ -1,26 +1,27 @@
 package websocket
 
 import (
-	"sync"
 	"fmt"
 	"math/rand"
+	"sync"
+
 	"github.com/go-kit/kit/log/level"
 )
 
 type room struct {
-	Clients []*client
+	Clients    []*client
 	ClientLock sync.Mutex
-	ID int
+	ID         int
 }
 
 func newRoom(id int) *room {
 	return &room{
 		Clients: make([]*client, 0, 2),
-		ID: id,
+		ID:      id,
 	}
 }
 
-func (r *room) broadcast(message messageFrame)  {
+func (r *room) broadcast(message messageFrame) {
 	r.ClientLock.Lock()
 	for _, client := range r.Clients {
 		client.Send <- message
@@ -58,7 +59,7 @@ func (s *Server) RemoveClientFromRoom(roomNumber int, userID int) {
 }
 
 // AddRoom adds a new room to the room map.
-func (s *Server) AddRoom(roomNumber int, initialClientID int)  {
+func (s *Server) AddRoom(roomNumber int, initialClientID int) {
 	s.rooms.RLock()
 	_, ok := s.rooms.m[roomNumber]
 	s.rooms.RUnlock()
@@ -70,7 +71,6 @@ func (s *Server) AddRoom(roomNumber int, initialClientID int)  {
 	s.rooms.Lock()
 	s.rooms.m[roomNumber] = room
 	s.rooms.Unlock()
-
 
 	clients.RLock()
 	client, ok := clients.m[initialClientID]
@@ -90,7 +90,7 @@ func (s *Server) RemoveRoom(roomNumber int) {
 
 // JoinRoom adds a client to a room
 // If either the room or the client does not exist, nothing is done.
-func (s *Server) JoinRoom(roomNumber int, userID int)  {
+func (s *Server) JoinRoom(roomNumber int, userID int) {
 	s.rooms.RLock()
 	room, ok := s.rooms.m[roomNumber]
 	s.rooms.RUnlock()
@@ -125,8 +125,8 @@ func (s *Server) BroadcastToRoom(roomNumber int, command RESTCommand, payload in
 		room.broadcast(newFrame(roomNumber, id, command, payload))
 	} else {
 		level.Warn(s.logger).Log(
-			"Function", "BroadcastToRoom", 
-			"roomNumber", roomNumber, 
+			"Function", "BroadcastToRoom",
+			"roomNumber", roomNumber,
 			"err", "No such room")
 	}
 }
