@@ -211,6 +211,7 @@ func (r *conversationRepository) CountAdminsOfConversation(conversationID int) (
 	return numberOfAdmins, nil
 }
 
+// NewConversationRepository creates new object that implements core.ConversationRepo.
 func NewConversationRepository(dbSession *pg.DB) core.ConversationRepo {
 	return &conversationRepository{db: dbSession}
 }

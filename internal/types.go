@@ -123,7 +123,8 @@ type User struct {
 	IsDeleted           bool      `pg:"isdeleted" json:"isDeleted"`
 }
 
-// UserInConversation
+// UserInConversation represents the state of user as a member or ex-member of some
+// conversation.
 type UserInConversation struct {
 	User
 	IsAdmin    bool `pg:"isadmin" json:"isAdmin"`
@@ -132,7 +133,8 @@ type UserInConversation struct {
 	HasLeft    bool `pg:"hasleft" json:"hasLeft"`
 }
 
-// ProgrammingLanguage
+// ProgrammingLanguage is what is says.
+// The field IsRunnable is for future use.
 type ProgrammingLanguage struct {
 	Name       string `json:"name"`
 	IsRunnable bool   `pg:"IsRunnable" json:"isRunnable"`

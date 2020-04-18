@@ -30,7 +30,7 @@ type ConversationRepo interface {
 	CountAdminsOfConversation(conversationID int) (int, error)
 }
 
-// UserRepo
+// UserRepo contains all queries and mutations to work with users.
 type UserRepo interface {
 
 	// Mutations
@@ -56,7 +56,7 @@ type UserRepo interface {
 	DeleteUser(userid int) error
 }
 
-// MessageRepo
+// MessageRepo contains all queries and mutations to work with messages.
 type MessageRepo interface {
 
 	// Mutations

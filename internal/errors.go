@@ -43,6 +43,14 @@ func (e ApiError) ToJSON() []byte {
 	return json
 }
 
+// RequestLimitExceededError represents an error when a client is making to many
+// requests to the server.
+// The RateLimit map should contain the following fields.
+// All the units are in seconds.
+// 	* retryAfter
+// 	* remaining
+// 	* limit
+// 	* resetAfter
 type RequestLimitExceededError struct {
 	Err       ApiError
 	RateLimit map[string]int
