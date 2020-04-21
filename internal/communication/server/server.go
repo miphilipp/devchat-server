@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -154,47 +153,6 @@ func New(
 	router.Use(httpRateLimiter.RateLimit)
 
 	return app
-}
-
-func (s *Webserver) getMediaToken(writer http.ResponseWriter, request *http.Request) {
-	ttl := time.Hour * 1
-	token, err := session.GetMediaToken(ttl, s.config.MediaTokenSecret)
-	if err != nil {
-		writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		return
-	}
-
-	reply := struct {
-		Token      string `json:"token"`
-		Expiration int64  `json:"expiration"`
-	}{
-		Token:      token,
-		Expiration: time.Now().Add(ttl).Unix(),
-	}
-
-	writer.Header().Set("Content-Type", "application/json")
-	writer.WriteHeader(http.StatusOK)
-	json.NewEncoder(writer).Encode(reply)
-}
-
-func (s *Webserver) generateMediaAuthenticationMiddleware() func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			token := request.FormValue("token")
-			if token == "" {
-				fieldError := core.NewInvalidValueError("token")
-				writeJSONError(writer, fieldError, http.StatusBadRequest)
-				return
-			}
-
-			ok, _ := session.VerifyMediaToken(token, s.config.MediaTokenSecret)
-			if ok {
-				next.ServeHTTP(writer, request)
-			} else {
-				checkForAPIError(core.ErrAuthFailed, writer)
-			}
-		})
-	}
 }
 
 // SetupFileServer sets up file server handlers for all webpages and its subpages.

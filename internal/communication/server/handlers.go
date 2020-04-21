@@ -1,11 +1,10 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
+	"time"
 
 	"github.com/go-kit/kit/log/level"
 	"github.com/golang/gddo/httputil/header"
@@ -36,35 +35,6 @@ var apiErrorToStatusCodeMap = map[int]int{
 	1021: http.StatusBadRequest,
 	1022: http.StatusUnauthorized,
 	1023: http.StatusBadRequest,
-}
-
-func (s *Webserver) generateAuthenticateSession() func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			tokenString := request.Header.Get("Authorization")
-			if len(tokenString) == 0 {
-				checkForAPIError(core.ErrAuthFailed, writer)
-				return
-			}
-
-			tokenString = strings.Replace(tokenString, "Bearer ", "", 1)
-			name, err := s.session.ValidateToken(tokenString)
-			if err == nil {
-				//fmt.Println("Authentifikation Erfolgreich")
-				user, err := s.userService.GetUserForName(name)
-				if err != nil {
-					if !checkForAPIError(err, writer) {
-						writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-					}
-					return
-				}
-				copiedRequest := request.WithContext(context.WithValue(request.Context(), "UserID", user.ID))
-				next.ServeHTTP(writer, copiedRequest)
-			} else {
-				checkForAPIError(core.ErrAuthFailed, writer)
-			}
-		})
-	}
 }
 
 func (s *Webserver) login(writer http.ResponseWriter, request *http.Request) {
@@ -110,6 +80,14 @@ func (s *Webserver) login(writer http.ResponseWriter, request *http.Request) {
 		reply.Success = true
 		writer.Header().Set("Content-Type", "application/json")
 		writer.Header().Set("Authorization", "Bearer "+token)
+		cookie := http.Cookie{
+			Name:     "access_token",
+			Value:    token,
+			HttpOnly: true,
+			SameSite: http.SameSiteStrictMode,
+			Expires:  time.Now().UTC().Add(7 * 24 * time.Hour),
+		}
+		http.SetCookie(writer, &cookie)
 		writer.WriteHeader(http.StatusOK)
 		json.NewEncoder(writer).Encode(reply)
 	} else {
@@ -249,25 +227,10 @@ func (s Webserver) SetupRestHandlers() {
 		s.getProgrammingLanguages(writer, request)
 	}).Methods(http.MethodGet)
 
-	s.router.HandleFunc("/websocket", func(writer http.ResponseWriter, request *http.Request) {
-
-		token := request.FormValue("token")
-		name, err := s.session.ValidateToken(token)
-		if err == nil {
-			fmt.Println("Websocket Authentifikation Erfolgreich")
-			user, err := s.userService.GetUserForName(name)
-			if err != nil {
-				if !checkForAPIError(err, writer) {
-					writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-				}
-				return
-			}
-			s.socket.StartWebsocket(writer, request, user.ID)
-		} else {
-			checkForAPIError(core.ErrAuthFailed, writer)
-		}
-
-	}).Queries("token", "{token}")
+	api.HandleFunc("/websocket", func(writer http.ResponseWriter, request *http.Request) {
+		userContext := request.Context().Value("UserID").(int)
+		s.socket.StartWebsocket(writer, request, userContext)
+	})
 }
 
 func checkForAPIError(err error, writer http.ResponseWriter) bool {
