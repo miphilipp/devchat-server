@@ -102,7 +102,7 @@ func parseLanguage(next http.Handler) http.Handler {
 	})
 }
 
-// New erstellt eine neue Instanz vom Typ Webserver
+// New creates a new instance of type Webserver
 func New(
 	cfg ServerConfig,
 	userService user.Service,
