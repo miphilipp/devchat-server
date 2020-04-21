@@ -71,7 +71,7 @@ func (r *userRepository) CreateUser(user core.User, password string) (core.User,
 		Name             string
 		Email            string
 		ID               int
-		ConfirmationUUID uuid.UUID `pg: "confirmation_uuid"`
+		ConfirmationUUID uuid.UUID `pg:"confirmation_uuid"`
 		//languageCode string TODO: Implementieren
 	}{}
 	_, err := r.db.QueryOne(&userOutput,
