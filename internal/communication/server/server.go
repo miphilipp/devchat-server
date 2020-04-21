@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	//"fmt"
@@ -160,23 +159,6 @@ func (s Webserver) SetupFileServer() {
 	for _, path := range s.actualWebpages {
 		s.router.PathPrefix(path).Handler(s).Methods(http.MethodGet)
 	}
-}
-
-func (s *Webserver) logout(writer http.ResponseWriter, request *http.Request) {
-	tokenString := request.Header.Get("Authorization")
-	if len(tokenString) == 0 {
-		http.Error(writer, "Missing header", http.StatusBadRequest)
-		return
-	}
-
-	tokenString = strings.Replace(tokenString, "Bearer ", "", 1)
-	err := s.session.InvlidateToken(tokenString)
-	if err != nil {
-		level.Error(s.logger).Log("handler", "logout", "err", err)
-		http.Error(writer, "Forbidden", http.StatusInternalServerError)
-		return
-	}
-	writer.WriteHeader(http.StatusOK)
 }
 
 func containsPath(paths []string, path string) bool {

@@ -4,10 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
-	"github.com/go-kit/kit/log/level"
-	"github.com/golang/gddo/httputil/header"
 	core "github.com/miphilipp/devchat-server/internal"
 )
 
@@ -35,69 +32,6 @@ var apiErrorToStatusCodeMap = map[int]int{
 	1021: http.StatusBadRequest,
 	1022: http.StatusUnauthorized,
 	1023: http.StatusBadRequest,
-}
-
-func (s *Webserver) login(writer http.ResponseWriter, request *http.Request) {
-	if request.Header.Get("Content-Type") != "" {
-		value, _ := header.ParseValueAndParams(request.Header, "Content-Type")
-		if value != "application/json" {
-			writeJSONError(writer, core.ErrRequireJSON, http.StatusUnsupportedMediaType)
-			return
-		}
-	}
-
-	loginData := struct {
-		Password string
-		Username string
-	}{}
-	err := json.NewDecoder(request.Body).Decode(&loginData)
-	if err != nil {
-		apiErrorJSON := core.NewJSONFormatError(err.Error())
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
-	}
-
-	res, err := s.userService.AuthenticateUser(loginData.Username, loginData.Password)
-	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
-	}
-
-	reply := struct {
-		Success bool `json:"success"`
-	}{}
-
-	if res != -1 {
-		token, err := s.session.GetToken(loginData.Username)
-		if err != nil {
-			level.Error(s.logger).Log("Handler", "login", "err", err)
-			http.Error(writer, "Error", http.StatusInternalServerError)
-			return
-		}
-
-		reply.Success = true
-		writer.Header().Set("Content-Type", "application/json")
-		writer.Header().Set("Authorization", "Bearer "+token)
-		cookie := http.Cookie{
-			Name:     "access_token",
-			Value:    token,
-			HttpOnly: true,
-			SameSite: http.SameSiteStrictMode,
-			Expires:  time.Now().UTC().Add(7 * 24 * time.Hour),
-		}
-		http.SetCookie(writer, &cookie)
-		writer.WriteHeader(http.StatusOK)
-		json.NewEncoder(writer).Encode(reply)
-	} else {
-		reply.Success = false
-
-		writer.Header().Set("Content-Type", "application/json")
-		writer.WriteHeader(http.StatusOK)
-		json.NewEncoder(writer).Encode(reply)
-		return
-	}
 }
 
 // SetupRestHandlers registers all the  REST routes
