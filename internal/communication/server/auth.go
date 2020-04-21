@@ -13,6 +13,8 @@ import (
 	"github.com/miphilipp/devchat-server/internal/communication/session"
 )
 
+const accessTokenName = "access_token"
+
 func (s *Webserver) getMediaToken(writer http.ResponseWriter, request *http.Request) {
 	ttl := time.Hour * 1
 	token, err := session.GetMediaToken(ttl, s.config.MediaTokenSecret)
@@ -75,7 +77,7 @@ func getTokenFromRequest(request *http.Request) (string, error) {
 	tokenString = strings.Replace(tokenString, "Bearer ", "", 1)
 
 	if tokenString == "" {
-		tokenCookie, err := request.Cookie("access_token")
+		tokenCookie, err := request.Cookie(accessTokenName)
 		if err != nil {
 			return "", err
 		}
@@ -156,7 +158,7 @@ func (s *Webserver) login(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "application/json")
 		writer.Header().Set("Authorization", "Bearer "+token)
 		cookie := http.Cookie{
-			Name:     "access_token",
+			Name:     accessTokenName,
 			Value:    token,
 			HttpOnly: true,
 			SameSite: http.SameSiteStrictMode,
