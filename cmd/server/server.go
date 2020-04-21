@@ -99,7 +99,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	session := session.NewSessionManager(sessionPersistance)
+	session := session.NewManager(sessionPersistance, []byte(cfg.Server.JWTSecret))
 	if err != nil {
 		level.Error(logger).Log("System", "SessionManager", "err", err)
 		os.Exit(1)
@@ -122,6 +122,7 @@ func main() {
 			IndexFileName:            cfg.Server.IndexFileName,
 			AssetsFolder:             cfg.Server.AssetsFolder,
 			AllowedRequestsPerMinute: cfg.Server.AllowedRequestsPerMinute,
+			MediaTokenSecret:         []byte(cfg.Server.MediaJWTSecret),
 		},
 		userService,
 		conversationService,

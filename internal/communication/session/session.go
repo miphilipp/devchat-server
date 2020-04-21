@@ -3,33 +3,29 @@ package session
 import (
 	"time"
 	//"fmt"
-	"errors"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	core "github.com/miphilipp/devchat-server/internal"
 )
 
-const (
-	ErrInvalidToken = "Invalid token"
-)
-
-type SessionManager struct {
-	persistance SessionPersistance
+type Manager struct {
+	persistance Persistance
 	ttl         time.Duration
+	secret      []byte
 }
 
-func NewSessionManager(persistance SessionPersistance) *SessionManager {
-	return &SessionManager{
+func NewManager(persistance Persistance, secret []byte) *Manager {
+	return &Manager{
 		persistance: persistance,
 		ttl:         7 * 24 * time.Hour,
+		secret:      secret,
 	}
 }
 
-var secret = []byte("supersecret") //TODO: Austauschen
+// ValidateToken Checks if the token is valid and/or black listed.
+func (s *Manager) ValidateToken(token string) (string, error) {
 
-func (s *SessionManager) ValidateToken(token string) (string, error) {
-
-	claims, err := verifyToken(token)
+	claims, err := verifyToken(token, s.secret)
 	if err != nil && claims == nil {
 		return "", core.ErrInvalidToken
 	}
@@ -53,13 +49,14 @@ func (s *SessionManager) ValidateToken(token string) (string, error) {
 	return claims.(jwt.MapClaims)["name"].(string), nil
 }
 
-func (s *SessionManager) GetToken(name string) (string, error) {
+// GetToken creates and then returns a new token for the given user.
+func (s *Manager) GetToken(name string) (string, error) {
 	exp := time.Now().UTC().Add(s.ttl).Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"name": name,
 		"exp":  exp,
 	})
-	tokenString, err := token.SignedString(secret)
+	tokenString, err := token.SignedString(s.secret)
 
 	err = s.persistance.Store(name, tokenString, exp)
 	if err != nil {
@@ -69,20 +66,21 @@ func (s *SessionManager) GetToken(name string) (string, error) {
 	return tokenString, err
 }
 
-func (s *SessionManager) InvlidateToken(token string) error {
-	claims, err := verifyToken(token)
+// InvlidateToken puts the token on the black list.
+func (s *Manager) InvlidateToken(token string) error {
+	claims, err := verifyToken(token, s.secret)
 	if err != nil && claims == nil {
-		return errors.New(ErrInvalidToken)
+		return core.ErrInvalidToken
 	}
 
 	_, ok := claims.(jwt.MapClaims)["name"]
 	if !ok {
-		return errors.New(ErrInvalidToken)
+		return core.ErrInvalidToken
 	}
 
 	_, ok = claims.(jwt.MapClaims)["exp"]
 	if !ok {
-		return errors.New(ErrInvalidToken)
+		return core.ErrInvalidToken
 	}
 
 	userName := claims.(jwt.MapClaims)["name"].(string)
@@ -96,11 +94,13 @@ func (s *SessionManager) InvlidateToken(token string) error {
 	return nil
 }
 
-func (s *SessionManager) InvlidateAllTokens(username string) error {
+// InvlidateAllTokens invalidates all tokens of a user by putting them
+// on the black list.
+func (s *Manager) InvlidateAllTokens(username string) error {
 	return s.persistance.BlackListAll(username)
 }
 
-func verifyToken(tokenString string) (jwt.Claims, error) {
+func verifyToken(tokenString string, secret []byte) (jwt.Claims, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return secret, nil
 	})

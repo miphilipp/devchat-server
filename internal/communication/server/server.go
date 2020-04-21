@@ -34,6 +34,7 @@ type ServerConfig struct {
 	IndexFileName            string
 	AssetsFolder             string
 	AllowedRequestsPerMinute int
+	MediaTokenSecret         []byte
 }
 
 type Webserver struct {
@@ -44,7 +45,7 @@ type Webserver struct {
 	logger log.Logger
 
 	socket  *websocket.Server
-	session *session.SessionManager
+	session *session.Manager
 
 	userService         user.Service
 	conversationService conversations.Service
@@ -108,7 +109,7 @@ func New(
 	cService conversations.Service,
 	mService messaging.Service,
 	socket *websocket.Server,
-	session *session.SessionManager,
+	session *session.Manager,
 	limiterStore throttled.GCRAStore,
 	logger log.Logger) *Webserver {
 
@@ -157,7 +158,7 @@ func New(
 
 func (s *Webserver) getMediaToken(writer http.ResponseWriter, request *http.Request) {
 	ttl := time.Hour * 1
-	token, err := session.GetMediaToken(ttl)
+	token, err := session.GetMediaToken(ttl, s.config.MediaTokenSecret)
 	if err != nil {
 		writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
 		return
@@ -186,7 +187,7 @@ func (s *Webserver) generateMediaAuthenticationMiddleware() func(next http.Handl
 				return
 			}
 
-			ok, _ := session.VerifyMediaToken(token)
+			ok, _ := session.VerifyMediaToken(token, s.config.MediaTokenSecret)
 			if ok {
 				next.ServeHTTP(writer, request)
 			} else {

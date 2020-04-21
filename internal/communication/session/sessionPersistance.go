@@ -11,7 +11,7 @@ import (
 	"github.com/go-redis/redis"
 )
 
-type SessionPersistance interface {
+type Persistance interface {
 	BlackList(username string, token string, exp float64) error
 	IsBlackListed(username string, token string) (bool, error)
 	Store(username string, token string, exp int64) error
