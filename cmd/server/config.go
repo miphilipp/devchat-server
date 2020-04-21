@@ -2,21 +2,22 @@ package main
 
 import (
 	"os"
+	"time"
 
 	"gopkg.in/yaml.v2"
 )
 
 type config struct {
 	Server struct {
-		Addr                     string `yaml:"addr"`
-		GracefulTimeout          int    `yaml:"graceFulShutdownTimeout"`
-		IndexFileName            string `yaml:"indexFileName"`
-		AssetsFolder             string `yaml:"assetsFolder"`
-		CertFile                 string `yaml:"certFile"`
-		KeyFile                  string `yaml:"keyFile"`
-		JWTSecret                string `yaml:"jwtSecret"`
-		MediaJWTSecret           string `yaml:"mediaJwtSecret"`
-		AllowedRequestsPerMinute int    `yaml:"allowedRequestsPerMinute"`
+		Addr                     string        `yaml:"addr"`
+		GracefulTimeout          time.Duration `yaml:"graceFulShutdownTimeout"`
+		IndexFileName            string        `yaml:"indexFileName"`
+		AssetsFolder             string        `yaml:"assetsFolder"`
+		CertFile                 string        `yaml:"certFile"`
+		KeyFile                  string        `yaml:"keyFile"`
+		JWTSecret                string        `yaml:"jwtSecret"`
+		MediaJWTSecret           string        `yaml:"mediaJwtSecret"`
+		AllowedRequestsPerMinute int           `yaml:"allowedRequestsPerMinute"`
 	} `yaml:"server"`
 	Database struct {
 		Addr     string `yaml:"addr"`

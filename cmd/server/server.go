@@ -24,11 +24,9 @@ import (
 )
 
 func main() {
-	var wait time.Duration
 	var verbose bool
 	var configPath string
 
-	flag.DurationVar(&wait, "graceful-timeout", time.Second*15, "the duration for which the server gracefully wait for existing connections to finish - e.g. 15s or 1m")
 	flag.BoolVar(&verbose, "verbose", false, "")
 	flag.StringVar(&configPath, "configPath", "./config.yaml", "")
 	flag.Parse()
@@ -54,9 +52,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	if cfg.Server.GracefulTimeout == 0 {
+		cfg.Server.GracefulTimeout = time.Second * 15
+	}
+
 	level.Info(logger).Log("Addr", cfg.Server.Addr)
 
-	var useSSL = (cfg.Server.CertFile != "" && cfg.Server.KeyFile != "")
+	useSSL := (cfg.Server.CertFile != "" && cfg.Server.KeyFile != "")
 
 	db, err := database.Connect(cfg.Database.Addr, cfg.Database.User, cfg.Database.Password, cfg.Database.Name)
 	if err != nil {
@@ -93,7 +95,11 @@ func main() {
 	messagingService = messaging.NewService(messageRepo, conversationRepo)
 	messagingService = messaging.NewLoggingService(logger, messagingService, verbose)
 
-	sessionPersistance, err := session.NewInMemorySessionPersistance(cfg.InMemoryDB.Addr, cfg.InMemoryDB.Password)
+	sessionPersistance, err := session.NewInMemorySessionPersistance(
+		cfg.InMemoryDB.Addr,
+		cfg.InMemoryDB.Password,
+		logger,
+	)
 	if err != nil {
 		level.Error(logger).Log("System", "SessionPersistance", "err", err)
 		os.Exit(1)
@@ -158,7 +164,7 @@ func main() {
 	signal.Notify(c, os.Interrupt)
 	<-c
 
-	ctx, cancel := context.WithTimeout(context.Background(), wait)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.Server.GracefulTimeout)
 	defer cancel()
 	app.Server.Shutdown(ctx)
 	if redirectServer != nil {

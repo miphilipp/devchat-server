@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	//"errors"
-
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/go-redis/redis"
 )
 
@@ -20,9 +20,10 @@ type Persistance interface {
 
 type inMemorySessionPersistance struct {
 	RedisClient *redis.Client
+	logger      log.Logger
 }
 
-func NewInMemorySessionPersistance(addr string, password string) (*inMemorySessionPersistance, error) {
+func NewInMemorySessionPersistance(addr, password string, logger log.Logger) (*inMemorySessionPersistance, error) {
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: password,
@@ -36,6 +37,7 @@ func NewInMemorySessionPersistance(addr string, password string) (*inMemorySessi
 
 	return &inMemorySessionPersistance{
 		RedisClient: redisClient,
+		logger:      logger,
 	}, nil
 }
 
@@ -49,7 +51,7 @@ func (p inMemorySessionPersistance) IsBlackListed(username string, token string)
 	for _, pair := range list {
 		elements := strings.Split(pair, ",")
 		if len(elements) != 2 {
-			panic(fmt.Errorf("%s", "Redis format error"))
+			level.Warn(p.logger).Log("message", "Redis format error")
 			continue
 		}
 
