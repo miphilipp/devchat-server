@@ -35,7 +35,7 @@ var apiErrorToStatusCodeMap = map[int]int{
 }
 
 // SetupRestHandlers registers all the  REST routes
-func (s Webserver) SetupRestHandlers() {
+func (s *Webserver) SetupRestHandlers() {
 	s.router.HandleFunc("/user", func(writer http.ResponseWriter, request *http.Request) {
 		s.registerUser(writer, request)
 	}).Methods(http.MethodPost)

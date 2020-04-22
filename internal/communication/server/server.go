@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -52,7 +53,7 @@ type Webserver struct {
 	actualWebpages []string
 }
 
-func (s Webserver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *Webserver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path, err := filepath.Abs(r.URL.Path)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -67,6 +68,9 @@ func (s Webserver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if os.IsNotExist(err) {
 		// file does not exist, serve index.html
 		if containsPath(s.actualWebpages, r.URL.Path) {
+			if pusher, ok := w.(http.Pusher); ok {
+				s.pushFiles(pusher, r)
+			}
 			http.ServeFile(w, r, filepath.Join(s.config.AssetsFolder, s.config.IndexFileName))
 		} else {
 			writeJSONError(w, core.ErrRessourceDoesNotExist, http.StatusNotFound)
@@ -82,6 +86,31 @@ func (s Webserver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// otherwise, use http.FileServer to serve the static dir
 	http.FileServer(http.Dir(s.config.AssetsFolder)).ServeHTTP(w, r)
+}
+
+func (s *Webserver) pushFiles(pusher http.Pusher, r *http.Request) {
+	options := &http.PushOptions{
+		Header: http.Header{
+			"Accept-Encoding": r.Header["Accept-Encoding"],
+		},
+	}
+	cssPath := filepath.Join(s.config.AssetsFolder, "css")
+	cssFiles, _ := ioutil.ReadDir(cssPath)
+	for _, file := range cssFiles {
+		path, _ := filepath.Abs(filepath.Join(cssPath, file.Name()))
+		if err := pusher.Push(path, options); err != nil {
+			s.logger.Log("PushFail", err)
+		}
+	}
+
+	jsPath := filepath.Join(s.config.AssetsFolder, "js")
+	jsFiles, _ := ioutil.ReadDir(jsPath)
+	for _, file := range jsFiles {
+		path, _ := filepath.Abs(filepath.Join(cssPath, file.Name()))
+		if err := pusher.Push(path, options); err != nil {
+			s.logger.Log("PushFail", err)
+		}
+	}
 }
 
 func limitSize(next http.Handler) http.Handler {
@@ -155,7 +184,7 @@ func New(
 }
 
 // SetupFileServer sets up file server handlers for all webpages and its subpages.
-func (s Webserver) SetupFileServer() {
+func (s *Webserver) SetupFileServer() {
 	for _, path := range s.actualWebpages {
 		s.router.PathPrefix(path).Handler(s).Methods(http.MethodGet)
 	}
