@@ -13,6 +13,9 @@ server:
     # Wenn eines dieser Felder leer ist, ist TLS deaktiviert.
     certFile:
     keyFile:
+
+    jwtSecret: # String
+    mediaJwtSecret: # String
   
 database:
     name: # Datenbankname
