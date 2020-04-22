@@ -207,10 +207,11 @@ func (r *userRepository) GetUserForName(name string) (core.User, error) {
 		LockedOutSince      time.Time `pg:"lockedoutsince"`
 		LastFailedLogin     time.Time `pg:"lastfailedlogin"`
 		IsDeleted           bool      `pg:"isdeleted"`
+		ConfirmationUUID    uuid.UUID `pg:"confirmation_uuid"`
 		//languageCode string TODO: Implementieren
 	}{}
 	_, err := r.db.QueryOne(&userOutput,
-		`SELECT name, email, id, failedloginattempts, lockedoutsince, lastfailedlogin, isdeleted
+		`SELECT name, email, id, failedloginattempts, lockedoutsince, lastfailedlogin, isdeleted, confirmation_uuid
 		 FROM public.user WHERE name = ?;`, name)
 	if err != nil && err == pg.ErrNoRows {
 		return core.User{}, core.ErrUserDoesNotExist
@@ -227,6 +228,7 @@ func (r *userRepository) GetUserForName(name string) (core.User, error) {
 		FailedLoginAttempts: userOutput.FailedLoginAttempts,
 		LastFailedLogin:     userOutput.LastFailedLogin,
 		IsDeleted:           userOutput.IsDeleted,
+		ConfirmationUUID:    userOutput.ConfirmationUUID,
 		//LanguageCode: userOutput.languageCode,
 	}, nil
 }
