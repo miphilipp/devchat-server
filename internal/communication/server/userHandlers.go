@@ -89,7 +89,7 @@ func (s *Webserver) registerUser(writer http.ResponseWriter, request *http.Reque
 		Email: requestBody.Email,
 		Name:  requestBody.Username,
 	}
-	err = s.userService.CreateAccount(user, requestBody.Password, makeLinkPrefix(request))
+	err = s.userService.CreateAccount(user, requestBody.Password, s.config.RootURL)
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
@@ -193,7 +193,7 @@ func (s *Webserver) sendPasswordReset(writer http.ResponseWriter, request *http.
 		return
 	}
 
-	err = s.userService.SendPasswordResetMail(requestBody.Email, makeLinkPrefix(request), language.String())
+	err = s.userService.SendPasswordResetMail(requestBody.Email, s.config.RootURL, language.String())
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)

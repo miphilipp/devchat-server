@@ -137,6 +137,7 @@ func main() {
 			AssetsFolder:             cfg.Server.AssetsFolder,
 			AllowedRequestsPerMinute: cfg.Server.AllowedRequestsPerMinute,
 			MediaTokenSecret:         []byte(cfg.Server.MediaJWTSecret),
+			RootURL:                  cfg.Server.RootURL,
 		},
 		userService,
 		conversationService,

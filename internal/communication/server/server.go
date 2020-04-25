@@ -32,6 +32,7 @@ type ServerConfig struct {
 	Addr                     string
 	IndexFileName            string
 	AssetsFolder             string
+	RootURL                  string
 	AllowedRequestsPerMinute int
 	MediaTokenSecret         []byte
 }
@@ -197,11 +198,4 @@ func containsPath(paths []string, path string) bool {
 		}
 	}
 	return false
-}
-
-func makeLinkPrefix(r *http.Request) string {
-	if r.TLS == nil {
-		return "http://" + r.Host
-	}
-	return "https://" + r.Host
 }
