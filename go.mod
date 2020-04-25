@@ -10,8 +10,8 @@ require (
 	github.com/golang/gddo v0.0.0-20191216155521-fbfc0f5e7810
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/uuid v1.1.1
-	github.com/gorilla/mux v1.7.3
-	github.com/gorilla/websocket v1.4.1
+	github.com/gorilla/mux v1.7.4
+	github.com/gorilla/websocket v1.4.2
 	github.com/sergi/go-diff v1.1.0
 	github.com/throttled/throttled v2.2.4+incompatible
 	golang.org/x/text v0.3.2
