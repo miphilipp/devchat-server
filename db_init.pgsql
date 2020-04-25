@@ -1,15 +1,3 @@
---DROP DATABASE devchat;
-CREATE DATABASE devchat
-    WITH 
-    OWNER = default
-    ENCODING = 'UTF8'
-    LC_COLLATE = 'de_DE.UTF-8'
-    LC_CTYPE = 'de_DE.UTF-8'
-    TABLESPACE = pg_default
-    CONNECTION LIMIT = -1;
-
-    \connect devchat
-
 -- DROP TABLE public."user";
 CREATE TABLE public."user" (
     name character varying(40) NOT NULL,
@@ -86,7 +74,7 @@ CREATE TABLE public.code_message (
     language character varying(20) NOT NULL REFERENCES public.programming_language (name) MATCH SIMPLE,
     code text NOT NULL,
     title character varying(40) NOT NULL,
-    lockedby bigint REFERENCES public.user (id) on delete set null MATCH SIMPLE      
+    lockedby bigint REFERENCES public.user (id) MATCH SIMPLE on delete set null
 );
 
 -- DROP INDEX public.code_message_language_idx;
@@ -102,12 +90,12 @@ CREATE TABLE public.text_message (
     text text NOT NULL
 );
 
-CREATE OR REPLACE public.v_text_message AS
+CREATE OR REPLACE VIEW public.v_text_message AS
 SELECT m.id, t.text, m.sentdate, m.conversationid, m.userid, m.type
 FROM public.message m
 JOIN public.text_message t ON m.id = t.id;
 
-CREATE OR REPLACE public.v_code_message AS
+CREATE OR REPLACE VIEW public.v_code_message AS
 SELECT m.id, c.code, m.sentdate, m.conversationid, m.userid, m.type, c.title, c.language, c.lockedby
 FROM public.message m
 JOIN public.code_message c ON m.id = c.id;

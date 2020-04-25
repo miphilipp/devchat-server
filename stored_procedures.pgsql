@@ -85,10 +85,10 @@ begin
   select exists(
     select 1 from group_association 
     where conversationId = v_conversationId and userid = v_userid
-  ) into v_exists
+  ) into v_exists;
 
   if v_exists = false THEN
-    RAISE EXCEPTION 'Not invited'
+    RAISE EXCEPTION 'Not invited';
   end if;
 
   select hasleft 
@@ -225,7 +225,7 @@ WHERE message_status.hasread = false and
 	userid = v_userid and 
 	conversationid = v_conversationid;
 END
-	$BODY$;
+$BODY$;
 
 
 CREATE TRIGGER "afterSetOnline"
@@ -244,7 +244,7 @@ begin
   select exists(
     select 1 from group_association 
     where conversationId = v_conversationId and userid = v_userid
-  ) into v_exists
+  ) into v_exists;
 
   if v_exists = true THEN
     UPDATE group_association
