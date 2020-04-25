@@ -4,6 +4,7 @@ import (
 	//"fmt"
 	"context"
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -26,10 +27,17 @@ import (
 func main() {
 	var verbose bool
 	var configPath string
+	var showVersion bool
 
-	flag.BoolVar(&verbose, "verbose", false, "")
-	flag.StringVar(&configPath, "configPath", "./config.yaml", "")
+	flag.BoolVar(&verbose, "verbose", false, "If true, every called use case is logged.")
+	flag.StringVar(&configPath, "configPath", "./config.yaml", "The path to the config file.")
+	flag.BoolVar(&showVersion, "version", false, "Prints the version of this application.")
 	flag.Parse()
+
+	if showVersion {
+		fmt.Println("0.5")
+		os.Exit(0)
+	}
 
 	var logger log.Logger
 	logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
@@ -53,7 +61,7 @@ func main() {
 	}
 
 	if cfg.Server.GracefulTimeout == 0 {
-		cfg.Server.GracefulTimeout = time.Second * 15
+		cfg.Server.GracefulTimeout = time.Second * 10
 	}
 
 	level.Info(logger).Log("Addr", cfg.Server.Addr)
