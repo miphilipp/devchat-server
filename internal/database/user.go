@@ -72,7 +72,6 @@ func (r *userRepository) CreateUser(user core.User, password string) (core.User,
 		Email            string
 		ID               int
 		ConfirmationUUID uuid.UUID `pg:"confirmation_uuid"`
-		//languageCode string TODO: Implementieren
 	}{}
 	_, err := r.db.QueryOne(&userOutput,
 		`INSERT INTO public.user (name, email, password, confirmation_uuid) 
@@ -166,7 +165,6 @@ func (r *userRepository) GetUserForID(userID int) (core.User, error) {
 		Name  string
 		Email string
 		ID    int
-		//languageCode string TODO: Implementieren
 	}{}
 	_, err := r.db.QueryOne(&userOutput,
 		"SELECT name, email, id FROM public.user WHERE id = ? AND isdeleted = false;", userID)
@@ -208,7 +206,6 @@ func (r *userRepository) GetUserForName(name string) (core.User, error) {
 		LastFailedLogin     time.Time `pg:"lastfailedlogin"`
 		IsDeleted           bool      `pg:"isdeleted"`
 		ConfirmationUUID    uuid.UUID `pg:"confirmation_uuid"`
-		//languageCode string TODO: Implementieren
 	}{}
 	_, err := r.db.QueryOne(&userOutput,
 		`SELECT name, email, id, failedloginattempts, lockedoutsince, lastfailedlogin, isdeleted, confirmation_uuid
