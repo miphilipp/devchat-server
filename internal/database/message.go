@@ -244,7 +244,7 @@ func (r *messageRepository) FindTextMessagesForConversation(
 func (r *messageRepository) FindMessageStubForConversation(conversationID int, messageID int) (core.Message, error) {
 	var message core.Message
 	_, err := r.db.QueryOne(&message,
-		`SELECT m.type, m.id, m.sentdate, u.name as "Author"
+		`SELECT m.type, m.id, m.sentdate, u.name as Author
 		FROM message m
 		JOIN conversation co ON m.conversationId = co.id
 		JOIN public.user u ON m.userid = u.id
