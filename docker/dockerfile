@@ -1,0 +1,14 @@
+FROM debian:buster-slim
+
+EXPOSE 80 443
+
+RUN mkdir -p /app/data
+VOLUME [ "/app/data" ]
+
+WORKDIR /app/cmd/server
+COPY wait-for-it.sh  wait-for-it.sh
+RUN chmod +x wait-for-it.sh
+
+COPY ./cmd/server/server ./
+
+CMD ["./server"]

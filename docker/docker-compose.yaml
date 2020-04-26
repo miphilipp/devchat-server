@@ -1,0 +1,28 @@
+version: '3.8'
+services:
+    web:
+        ports: 
+            - "80:8080"
+        volumes:
+            - "./config.yaml:/app/cmd/server/config.yaml"
+            - "./data:/app/data"
+        restart: always
+        build: 
+            context: .
+        depends_on: 
+            - redis
+            - db
+        command: ["./wait-for-it.sh", "db:5432", "--", "./server"]
+    redis:
+        image: redis
+        restart: always
+    db:
+        environment: 
+            POSTGRES_DB: devchat
+            POSTGRES_PASSWORD: "123456"
+        restart: always
+        image: postgres
+        volumes:
+            - ./db_init.pgsql:/docker-entrypoint-initdb.d/1-schema.sql
+            - ./stored_procedures.pgsql:/docker-entrypoint-initdb.d/2-procedures.sql
+            - ./init_data.sql:/docker-entrypoint-initdb.d/3-data.sql
