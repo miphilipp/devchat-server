@@ -2,13 +2,32 @@
 
 Der DevChat-Server nimmt Anfragen über eine REST-Schnittstelle, sowie über Websocket an.
 
+## Einrichtung
+
+```bash
+cd cmd/server
+go build
+```
+
+### Docker (docker-compose)
+
+```bash
+mkdir {Wunschpfad der DevChat-Daten}/data/assets
+cp {assets Pfad} ./data/assets
+
+# An dieser Stelle müssen enventuell noch Änderungen in config.yaml vorgenommen werden.
+docker-compose up
+```
+
 ## Konfiguration
 
 ```yaml
 server:
-    addr: # Lokale Serveradresse
+    addr: # Lokale Serveradresse im Format host:port
     indexFileName: # Dateiname der index.html (Nicht der vollständige Pfad)
     assetsFolder: # Ordner in dem die öffentlich zugänglichen Dateien liegen.
+
+    rootURL: # Die URL an welcher der Server von außen erreichbar ist.
 
     # Wenn eines dieser Felder leer ist, ist TLS deaktiviert.
     certFile:
