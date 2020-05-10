@@ -2,6 +2,7 @@ package websocket
 
 import (
 	//"fmt"
+	"context"
 	"math/rand"
 	"sync"
 
@@ -36,10 +37,14 @@ func newClient(id int) *client {
 	}
 }
 
-// SendToClient sends a message over all the connections a client has established.
-func (s *Server) SendToClient(clientID, source, id int, command RESTCommand, payload interface{}) {
+// Unicast sends a message over all the connections a client has established.
+func (s *Server) Unicast(ctx context.Context, userID int, payload interface{}) {
+	id := ctx.Value(RequestContextIDKey).(int)
+	command := ctx.Value(RequestContextCommandKey).(RESTCommand)
+	source := ctx.Value(RequestContextSourceKey).(int)
+
 	clients.RLock()
-	client, ok := clients.m[clientID]
+	client, ok := clients.m[userID]
 	clients.RUnlock()
 	if ok {
 		if id == 0 {

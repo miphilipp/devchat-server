@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -15,6 +16,7 @@ import (
 	core "github.com/miphilipp/devchat-server/internal"
 	"github.com/miphilipp/devchat-server/internal/conversations"
 	"github.com/miphilipp/devchat-server/internal/messaging"
+	"github.com/miphilipp/devchat-server/internal/user"
 )
 
 var (
@@ -32,6 +34,7 @@ var (
 type Server struct {
 	Messaging     messaging.Service
 	Conversations conversations.Service
+	User          user.Service
 
 	logger  log.Logger
 	limiter *WebsocketRateLimiter
@@ -45,6 +48,7 @@ type Server struct {
 func New(
 	messagingService messaging.Service,
 	conversationService conversations.Service,
+	userService user.Service,
 	limiterStore throttled.GCRAStore,
 	logger log.Logger) *Server {
 
@@ -57,6 +61,7 @@ func New(
 	server := &Server{
 		Messaging:     messagingService,
 		Conversations: conversationService,
+		User:          userService,
 		logger:        logger,
 		limiter:       limiter,
 		rooms: struct {
@@ -116,6 +121,8 @@ func (s *Server) StartWebsocket(w http.ResponseWriter, r *http.Request, user int
 			s.JoinRoom(conversation.ID, c.id)
 		}
 
+		s.User.UpdateOnlineTimestamp(c.id)
+
 		go s.sendLoop(c)
 	}
 
@@ -142,15 +149,11 @@ func (s *Server) notifyOnlineState(roomNumber int, userID int, state bool) {
 		NewState: state,
 	}
 
-	s.BroadcastToRoom(
-		roomNumber,
-		RESTCommand{
-			Ressource: "member/onlinestate",
-			Method:    PatchCommandMethod,
-		},
-		notification,
-		-1,
-	)
+	ctx := NewRequestContext(RESTCommand{
+		Ressource: "member/onlinestate",
+		Method:    PatchCommandMethod,
+	}, -1, -1)
+	s.BroadcastToRoom(roomNumber, notification, ctx)
 }
 
 func (s *Server) cleanupAfterClient(conn *websocket.Conn, client *client) {
@@ -161,7 +164,12 @@ func (s *Server) cleanupAfterClient(conn *websocket.Conn, client *client) {
 		clients.Unlock()
 		s.removeClientFromRooms(client)
 		client.Disconnect <- 1000 // Code is not relevant
-		// TODO: User auf offline schalten
+
+		s.rooms.RLock()
+		for _, conversation := range s.rooms.m {
+			s.notifyOnlineState(conversation.ID, client.id, false)
+		}
+		s.rooms.RUnlock()
 	}
 }
 
@@ -195,7 +203,7 @@ func (s *Server) receiveLoop(conn *websocket.Conn, c *client) {
 		wrapper := messageFrame{
 			Payload: &msg,
 		}
-		// Read message from browser
+
 		err := conn.ReadJSON(&wrapper)
 		if err != nil {
 			closeMsg, ok := err.(*websocket.CloseError)
@@ -215,29 +223,31 @@ func (s *Server) receiveLoop(conn *websocket.Conn, c *client) {
 			continue
 		}
 
-		limit, err := s.limiter.RateLimit(
+		shouldLimit, err := s.limiter.RateLimit(
 			wrapper.Command.Method,
 			wrapper.Command.Ressource,
 			conn.UnderlyingConn().RemoteAddr().String(),
 		)
 
-		if err != nil && limit != nil && wrapper.Command.Ressource != "livecoding" {
+		if err != nil && shouldLimit != nil && wrapper.Command.Ressource != "livecoding" {
 			level.Info(s.logger).Log(
 				"Event", "RateLimit",
 				"RemoteAddr", conn.RemoteAddr(),
 				"commandRessource", wrapper.Command.Ressource)
-			c.Send <- makeErrorMessage(limit, -1)
+			c.Send <- makeErrorMessage(shouldLimit, -1)
 		}
+
+		ctx := NewRequestContext(wrapper.Command, wrapper.ID, wrapper.Source)
 
 		switch wrapper.Command.Ressource {
 		case "message":
 			if wrapper.Command.Method == PostCommandMethod {
-				err := s.processNewMessage(wrapper, c.id, msg)
+				_, err = s.Messaging.SendMessage(wrapper.Source, c.id, msg, s, ctx)
 				if err != nil {
 					c.Send <- makeErrorMessage(core.UnwrapDatabaseError(err), wrapper.ID)
 				}
 			} else if wrapper.Command.Method == PatchCommandMethod {
-				err := s.processPatchMessage(wrapper, c.id, msg)
+				_, err := s.Messaging.EditMessage(c.id, wrapper.Source, msg, s, ctx)
 				if err != nil {
 					c.Send <- makeErrorMessage(core.UnwrapDatabaseError(err), wrapper.ID)
 				}
@@ -260,7 +270,7 @@ func (s *Server) receiveLoop(conn *websocket.Conn, c *client) {
 				break
 			}
 
-			err := s.processToggleLiveCodingSession(wrapper, c.id, msg, true)
+			_, err := s.Messaging.ToggleLiveSession(c.id, wrapper.Source, true, msg, s, ctx)
 			if err != nil {
 				c.Send <- makeErrorMessage(core.UnwrapDatabaseError(err), wrapper.ID)
 			}
@@ -270,7 +280,7 @@ func (s *Server) receiveLoop(conn *websocket.Conn, c *client) {
 				break
 			}
 
-			err := s.processToggleLiveCodingSession(wrapper, c.id, msg, false)
+			_, err := s.Messaging.ToggleLiveSession(c.id, wrapper.Source, false, msg, s, ctx)
 			if err != nil {
 				c.Send <- makeErrorMessage(core.UnwrapDatabaseError(err), wrapper.ID)
 			}
@@ -280,14 +290,28 @@ func (s *Server) receiveLoop(conn *websocket.Conn, c *client) {
 				break
 			}
 
-			err := s.processLivePatchMessage(wrapper, c.id, msg)
+			_, err := s.Messaging.LiveEditMessage(c.id, wrapper.Source, msg, s, ctx)
 			if err != nil {
 				c.Send <- makeErrorMessage(core.UnwrapDatabaseError(err), wrapper.ID)
 			}
+		case "typing":
+			if wrapper.Command.Method != NotifyCommandMethod {
+				c.Send <- makeErrorMessage(core.ErrUnsupportedMethod, wrapper.ID)
+				break
+			}
 
-			//s.BroadcastToRoom(wrapper.Source, wrapper.Command, reply, wrapper.ID)
+			err := s.Messaging.BroadcastUserIsTyping(c.id, wrapper.Source, s, ctx)
+			if err != nil {
+				c.Send <- makeErrorMessage(core.UnwrapDatabaseError(err), wrapper.ID)
+			}
 		default:
 			c.Send <- makeErrorMessage(core.ErrUnsupportedMethod, wrapper.ID)
 		}
 	}
+}
+
+type endpoint struct {
+	command   RESTCommand
+	isLimited bool
+	action    func(ctx context.Context, clientID int, frame messageFrame)
 }

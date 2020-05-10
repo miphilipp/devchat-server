@@ -14,11 +14,14 @@ type config struct {
 		GracefulTimeout          time.Duration `yaml:"graceFulShutdownTimeout"`
 		IndexFileName            string        `yaml:"indexFileName"`
 		AssetsFolder             string        `yaml:"assetsFolder"`
+		AvatarFolder             string        `yaml:"avatarFolder"`
+		MediaFolder              string        `yaml:"mediaFolder"`
 		CertFile                 string        `yaml:"certFile"`
 		KeyFile                  string        `yaml:"keyFile"`
 		JWTSecret                string        `yaml:"jwtSecret"`
 		MediaJWTSecret           string        `yaml:"mediaJwtSecret"`
 		AllowedRequestsPerMinute int           `yaml:"allowedRequestsPerMinute"`
+		Webpages                 []string      `yaml:"webpages"`
 	} `yaml:"server"`
 	Database struct {
 		Addr     string `yaml:"addr"`
@@ -38,9 +41,10 @@ type config struct {
 		Addr     string `yaml:"addr"`
 	} `yaml:"inmemorydb"`
 	UserService struct {
-		lockOutTimeMinutes       int `yaml:"lockoutTimeout"`
-		nLoginAttempts           int `yaml:"allowedLoginAttempts"`
-		passwordResetTimeMinutes int `yaml:"passwordResetTimeout"`
+		AllowSignUp              bool          `yaml:"allowSignup"`
+		LockOutTimeMinutes       time.Duration `yaml:"lockoutTimeout"`
+		NLoginAttempts           int           `yaml:"allowedLoginAttempts"`
+		PasswordResetTimeMinutes time.Duration `yaml:"passwordResetTimeout"`
 	} `yaml:"userService"`
 }
 

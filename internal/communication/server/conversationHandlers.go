@@ -2,7 +2,9 @@ package server
 
 import (
 	//"errors"
+
 	"net/http"
+
 	//"fmt"
 	"encoding/json"
 	"strconv"
@@ -32,15 +34,12 @@ func (s *Webserver) deleteConversation(writer http.ResponseWriter, request *http
 		return
 	}
 
-	s.socket.BroadcastToRoom(
-		conversationID,
-		websocket.RESTCommand{
-			Ressource: "conversation",
-			Method:    websocket.DeleteCommandMethod,
-		},
-		conversationID,
-		-1,
-	)
+	ctx := websocket.NewRequestContext(websocket.RESTCommand{
+		Ressource: "conversation",
+		Method:    websocket.DeleteCommandMethod,
+	}, -1, conversationID)
+	s.socket.BroadcastToRoom(conversationID, conversationID, ctx)
+
 	s.socket.RemoveRoom(conversationID)
 	writer.WriteHeader(http.StatusOK)
 }
@@ -89,14 +88,12 @@ func (s *Webserver) postConversation(writer http.ResponseWriter, request *http.R
 			ConversationTitle: createdConversation.Title,
 			Recipient:         member,
 		}
-		s.socket.SendToClient(
-			member, -1, 0,
-			websocket.RESTCommand{
-				Ressource: "invitation",
-				Method:    websocket.PostCommandMethod,
-			},
-			invitation,
-		)
+
+		ctx := websocket.NewRequestContext(websocket.RESTCommand{
+			Ressource: "invitation",
+			Method:    websocket.PostCommandMethod,
+		}, -1, userID)
+		s.socket.Unicast(ctx, member, invitation)
 	}
 
 	s.socket.AddRoom(createdConversation.ID, userID)
@@ -154,15 +151,11 @@ func (s *Webserver) patchConversation(writer http.ResponseWriter, request *http.
 		RepoURL: patchedConversation.Repourl,
 	}
 
-	s.socket.BroadcastToRoom(
-		conversationID,
-		websocket.RESTCommand{
-			Ressource: "conversation",
-			Method:    websocket.PatchCommandMethod,
-		},
-		reply,
-		-1,
-	)
+	ctx := websocket.NewRequestContext(websocket.RESTCommand{
+		Ressource: "conversation",
+		Method:    websocket.PatchCommandMethod,
+	}, -1, conversationID)
+	s.socket.BroadcastToRoom(conversationID, reply, ctx)
 
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
@@ -271,15 +264,11 @@ func (s *Webserver) deleteSelfFromConversation(userID, conversationID, newAdmin 
 		NewAdminID     int `json:"newAdminId"`
 	}{userID, conversationID, newAdmin}
 
-	s.socket.BroadcastToRoom(
-		conversationID,
-		websocket.RESTCommand{
-			Ressource: "conversation/member",
-			Method:    websocket.DeleteCommandMethod,
-		},
-		reply,
-		-1,
-	)
+	ctx := websocket.NewRequestContext(websocket.RESTCommand{
+		Ressource: "conversation/member",
+		Method:    websocket.DeleteCommandMethod,
+	}, -1, conversationID)
+	s.socket.BroadcastToRoom(conversationID, reply, ctx)
 
 	return nil
 }
@@ -297,15 +286,11 @@ func (s *Webserver) deleteOtherUserFromConversation(userCtx, userID, conversatio
 		ConversationID int `json:"conversationId"`
 	}{userID, conversationID}
 
-	s.socket.BroadcastToRoom(
-		conversationID,
-		websocket.RESTCommand{
-			Ressource: "conversation/member",
-			Method:    websocket.DeleteCommandMethod,
-		},
-		reply,
-		-1,
-	)
+	ctx := websocket.NewRequestContext(websocket.RESTCommand{
+		Ressource: "conversation/member",
+		Method:    websocket.DeleteCommandMethod,
+	}, -1, conversationID)
+	s.socket.BroadcastToRoom(conversationID, reply, ctx)
 	return nil
 }
 
@@ -352,15 +337,11 @@ func (s *Webserver) patchAdminStatus(writer http.ResponseWriter, request *http.R
 		State  bool `json:"state"`
 	}{userID, requestBody.State}
 
-	s.socket.BroadcastToRoom(
-		conversationID,
-		websocket.RESTCommand{
-			Ressource: "conversation/member",
-			Method:    websocket.PatchCommandMethod,
-		},
-		reply,
-		-1,
-	)
+	ctx := websocket.NewRequestContext(websocket.RESTCommand{
+		Ressource: "conversation/member",
+		Method:    websocket.PatchCommandMethod,
+	}, -1, conversationID)
+	s.socket.BroadcastToRoom(conversationID, reply, ctx)
 
 	writer.WriteHeader(http.StatusOK)
 }

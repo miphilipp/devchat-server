@@ -34,6 +34,42 @@ end;
 $$ language PLpgSQL;
 
 
+create or replace function createMediaMessage(
+    in v_userid integer, 
+    in v_conversationId integer, 
+    in v_sentDate timestamp,
+    in v_text text)
+RETURNS group_association.userid%TYPE 
+AS $$
+DECLARE newMessageId group_association.userid%TYPE;
+DECLARE member RECORD;
+begin
+    
+  INSERT INTO message (userid, conversationId, sentDate, type, iscomplete) 
+  VALUES (v_userid, v_conversationId, v_sentDate, 2, false) 
+  RETURNING id INTO newMessageId;
+
+  INSERT INTO public.media_message (id, text) 
+  VALUES (currval('message_id_seq'), v_text);
+
+  INSERT INTO message_status(userid, messageid, conversationid, hasread)
+  VALUES (v_userid, newMessageId, v_conversationId, true);
+
+  FOR member IN (
+      SELECT userid
+      FROM public.group_association 
+      WHERE userid != v_userid AND conversationid = v_conversationId 
+  )
+  LOOP
+    INSERT INTO message_status(userid, messageid, conversationid, hasread)
+    VALUES (member.userid, newMessageId, v_conversationId, false);
+  END LOOP;
+  
+  RETURN newMessageId;
+end;
+$$ language PLpgSQL;
+
+
 create or replace function createCodeMessage(
     in v_userid integer,
     in v_conversationId integer,
@@ -201,20 +237,6 @@ begin
 end;
 $$ language PLpgSQL;
 
-
-CREATE or replace FUNCTION public."updateLastOnline"()
-    RETURNS trigger
-    LANGUAGE 'plpgsql'
-     NOT LEAKPROOF
-AS $BODY$
-BEGIN
-update public.user
-set lastonline = current_timestamp at time zone 'utc'
-where id = new.id;
-RETURN NULL;
-END;
-$BODY$;
-
 CREATE  or replace FUNCTION public.calculateUnreadMessages(IN v_conversationid integer, IN v_userid integer)
     RETURNS integer
     LANGUAGE 'plpgsql'
@@ -226,15 +248,6 @@ WHERE message_status.hasread = false and
 	conversationid = v_conversationid;
 END
 $BODY$;
-
-
-CREATE TRIGGER "afterSetOnline"
-AFTER UPDATE OF isonline
-ON public."user"
-FOR EACH ROW
-WHEN (NEW.isonline = true)
-EXECUTE PROCEDURE public."updateLastOnline"();
-
 
 create or replace procedure inviteUser(
     in v_userid integer, in v_conversationId integer)

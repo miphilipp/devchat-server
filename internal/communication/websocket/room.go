@@ -1,7 +1,7 @@
 package websocket
 
 import (
-	"fmt"
+	"context"
 	"math/rand"
 	"sync"
 
@@ -108,12 +108,13 @@ func (s *Server) JoinRoom(roomNumber int, userID int) {
 	room.ClientLock.Lock()
 	room.Clients = append(room.Clients, client)
 	room.ClientLock.Unlock()
-	fmt.Println("Join room", roomNumber, userID)
 }
 
 // BroadcastToRoom sends a RESTCommand with payload to every member of the
 // specified room.
-func (s *Server) BroadcastToRoom(roomNumber int, command RESTCommand, payload interface{}, id int) {
+func (s *Server) BroadcastToRoom(roomNumber int, payload interface{}, ctx context.Context) {
+	command := ctx.Value("command").(RESTCommand)
+	id := ctx.Value("id").(int)
 	if id == -1 {
 		id = rand.Int()
 	}

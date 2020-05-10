@@ -132,18 +132,17 @@ func (s *loggingService) SendPasswordResetMail(emailAddress, baseURL, language s
 	return s.next.SendPasswordResetMail(emailAddress, baseURL, language)
 }
 
-func (s *loggingService) ChangeOnlineState(userCtx int, state bool) (err error) {
+func (s *loggingService) UpdateOnlineTimestamp(userCtx int) (err error) {
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
-				"Use-Case", "ChangeOnlineState",
+				"Use-Case", "UpdateOnlineTimestamp",
 				"Context", userCtx,
-				"State", state,
 				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
-	return s.next.ChangeOnlineState(userCtx, state)
+	return s.next.UpdateOnlineTimestamp(userCtx)
 }
 
 func (s *loggingService) ChangePassword(userid int, oldPassword string, newPassword string) (err error) {
@@ -159,29 +158,43 @@ func (s *loggingService) ChangePassword(userid int, oldPassword string, newPassw
 	return s.next.ChangePassword(userid, oldPassword, newPassword)
 }
 
-func (s *loggingService) SaveAvatar(filePath string, fileType string, buffer []byte) (err error) {
+func (s *loggingService) SaveAvatar(userID int, pathPrefix, fileType string, buffer []byte) (err error) {
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
 				"Use-Case", "SaveAvatar",
-				"path", filePath,
+				"userID", userID,
 				"type", fileType,
 				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
-	return s.next.SaveAvatar(filePath, fileType, buffer)
+	return s.next.SaveAvatar(userID, pathPrefix, fileType, buffer)
 }
 
-func (s *loggingService) DeleteAvatar(filePath string) (err error) {
+func (s *loggingService) DeleteAvatar(pathPrefix string, userID int) (err error) {
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
 				"Use-Case", "DeleteAvatar",
-				"path", filePath,
+				"userID", userID,
 				"took", time.Since(begin),
 				"err", err)
 		}
 	}(time.Now())
-	return s.next.DeleteAvatar(filePath)
+	return s.next.DeleteAvatar(pathPrefix, userID)
+}
+
+func (s *loggingService) GetAvatar(userID int, pathPrefix string, nodefault bool) (filePath string, mod time.Time, err error) {
+	defer func(begin time.Time) {
+		if err != nil || s.verbose {
+			s.logger.Log(
+				"Use-Case", "GetAvatar",
+				"userID", userID,
+				"nodefault", nodefault,
+				"took", time.Since(begin),
+				"err", err)
+		}
+	}(time.Now())
+	return s.next.GetAvatar(userID, pathPrefix, nodefault)
 }

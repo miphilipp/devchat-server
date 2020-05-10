@@ -2,11 +2,10 @@ package server
 
 import (
 	"bufio"
-	"net/http"
-	"os"
-
-	//"fmt"
+	"crypto/md5"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"strconv"
 
 	"github.com/go-kit/kit/log/level"
@@ -36,19 +35,25 @@ func (s *Webserver) serveUserAvatar(writer http.ResponseWriter, request *http.Re
 		nodefault = false
 	}
 
-	defaultAvatarPath := s.config.AssetsFolder + "/../avatars/default.png"
-	path := makeAvatarFileName(userID, s.config.AssetsFolder)
-
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if nodefault {
-			http.Error(writer, "Not found", http.StatusNotFound)
-			return
+	avatarPath, modTime, err := s.userService.GetAvatar(userID, s.config.AvatarFolder, nodefault)
+	if err != nil {
+		if !checkForAPIError(err, writer) {
+			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
 		}
-
-		path = defaultAvatarPath
+		return
 	}
 
-	http.ServeFile(writer, request, path)
+	modTimeBin, err := modTime.MarshalBinary()
+	if err != nil {
+		level.Error(s.logger).Log("Handler", "serveUserAvatar", "err", err)
+		writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
+		return
+	}
+
+	hash := fmt.Sprintf("\"%x\"", md5.Sum(modTimeBin))
+	writer.Header().Set("Cache-Control", "no-cache")
+	writer.Header().Set("ETag", hash)
+	http.ServeFile(writer, request, avatarPath)
 }
 
 func (s *Webserver) registerUser(writer http.ResponseWriter, request *http.Request) {
@@ -68,19 +73,19 @@ func (s *Webserver) registerUser(writer http.ResponseWriter, request *http.Reque
 	}
 
 	if requestBody.Username == "-" {
-		apiErrorJSON := core.NewJSONFormatError("username missing")
+		apiErrorJSON := core.NewJSONFormatError("username potentially missing")
 		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
 		return
 	}
 
 	if requestBody.Password == "-" {
-		apiErrorJSON := core.NewJSONFormatError("password missing")
+		apiErrorJSON := core.NewJSONFormatError("password potentially missing")
 		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
 		return
 	}
 
 	if requestBody.Email == "-" {
-		apiErrorJSON := core.NewJSONFormatError("email missing")
+		apiErrorJSON := core.NewJSONFormatError("email potentially missing")
 		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
 		return
 	}
@@ -206,19 +211,13 @@ func (s *Webserver) sendPasswordReset(writer http.ResponseWriter, request *http.
 
 func (s *Webserver) patchPassword(writer http.ResponseWriter, request *http.Request) {
 	userCtx := request.Context().Value("UserID").(int)
-	user, err := s.userService.GetUserForID(userCtx)
-	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
-	}
+	userCtxName := request.Context().Value("username").(string)
 
 	requestBody := struct {
 		OldPassword string `json:"oldPassword"`
 		NewPassword string `json:"newPassword"`
 	}{"-", "-"}
-	err = json.NewDecoder(request.Body).Decode(&requestBody)
+	err := json.NewDecoder(request.Body).Decode(&requestBody)
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "patchPassword", "err", err)
 		apiErrorJSON := core.NewJSONFormatError(err.Error())
@@ -227,13 +226,13 @@ func (s *Webserver) patchPassword(writer http.ResponseWriter, request *http.Requ
 	}
 
 	if requestBody.OldPassword == "-" {
-		apiErrorJSON := core.NewJSONFormatError("oldPassword missing")
+		apiErrorJSON := core.NewJSONFormatError("oldPassword potentially missing")
 		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
 		return
 	}
 
 	if requestBody.NewPassword == "-" {
-		apiErrorJSON := core.NewJSONFormatError("newPassword missing")
+		apiErrorJSON := core.NewJSONFormatError("newPassword potentially missing")
 		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
 		return
 	}
@@ -246,7 +245,7 @@ func (s *Webserver) patchPassword(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 
-	s.session.InvlidateAllTokens(user.Name)
+	s.session.InvlidateAllTokens(userCtxName)
 	writer.WriteHeader(http.StatusOK)
 }
 
@@ -296,7 +295,9 @@ func (s *Webserver) resetPassword(writer http.ResponseWriter, request *http.Requ
 
 func (s *Webserver) deleteUserAccount(writer http.ResponseWriter, request *http.Request) {
 	userID := request.Context().Value("UserID").(int)
-	user, err := s.userService.GetUserForID(userID)
+	userCtxName := request.Context().Value("username").(string)
+
+	err := s.userService.DeleteAccount(userID)
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
@@ -304,18 +305,10 @@ func (s *Webserver) deleteUserAccount(writer http.ResponseWriter, request *http.
 		return
 	}
 
-	err = s.userService.DeleteAccount(userID)
-	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
-	}
-
-	s.userService.DeleteAvatar(makeAvatarFileName(userID, s.config.AssetsFolder))
+	s.userService.DeleteAvatar(s.config.AvatarFolder, userID)
 
 	s.socket.DisconnectClient(userID)
-	s.session.InvlidateAllTokens(user.Name)
+	s.session.InvlidateAllTokens(userCtxName)
 	writer.WriteHeader(http.StatusOK)
 }
 
@@ -337,7 +330,8 @@ func (s *Webserver) postNewAvatar(writer http.ResponseWriter, request *http.Requ
 	defer file.Close()
 
 	buf := bufio.NewReaderSize(file, int(header.Size))
-	sniff, err := buf.Peek(512)
+	peakAmount := min(header.Size, 512)
+	sniff, err := buf.Peek(int(peakAmount))
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "postNewAvatar", "err", err)
 		writeJSONError(writer, core.ErrUnknownError, http.StatusBadRequest)
@@ -348,7 +342,7 @@ func (s *Webserver) postNewAvatar(writer http.ResponseWriter, request *http.Requ
 	buffer := make([]byte, header.Size)
 	buf.Read(buffer)
 
-	err = s.userService.SaveAvatar(makeAvatarFileName(userID, s.config.AssetsFolder), contentType, buffer)
+	err = s.userService.SaveAvatar(userID, s.config.AvatarFolder, contentType, buffer)
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
@@ -361,7 +355,7 @@ func (s *Webserver) postNewAvatar(writer http.ResponseWriter, request *http.Requ
 
 func (s *Webserver) deleteAvatar(writer http.ResponseWriter, request *http.Request) {
 	userID := request.Context().Value("UserID").(int)
-	err := s.userService.DeleteAvatar(makeAvatarFileName(userID, s.config.AssetsFolder))
+	err := s.userService.DeleteAvatar(s.config.AvatarFolder, userID)
 	if err != nil {
 		if !checkForAPIError(err, writer) {
 			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
@@ -369,8 +363,4 @@ func (s *Webserver) deleteAvatar(writer http.ResponseWriter, request *http.Reque
 		return
 	}
 	writer.WriteHeader(http.StatusOK)
-}
-
-func makeAvatarFileName(userID int, pathPrefix string) string {
-	return pathPrefix + "/../avatars/" + strconv.Itoa(userID) + ".png"
 }

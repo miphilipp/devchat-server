@@ -5,7 +5,6 @@ CREATE TABLE public."user" (
     password text NOT NULL,
     confirmation_uuid uuid,
     id SERIAL PRIMARY KEY,
-    isonline boolean NOT NULL DEFAULT false,
     lastonline timestamp without time zone,
     failedloginattempts smallint NOT NULL DEFAULT 0,
     lockedoutsince timestamp without time zone,
@@ -46,6 +45,7 @@ CREATE TABLE public.message (
     sentdate timestamp without time zone NOT NULL,
     conversationid integer NOT NULL REFERENCES public.conversation MATCH SIMPLE ON DELETE CASCADE,
     id BIGSERIAL PRIMARY KEY,
+    iscomplete boolean not null default true,
     userid integer NOT NULL REFERENCES public."user" MATCH SIMPLE ON DELETE CASCADE,
     type integer NOT NULL
 );
@@ -90,15 +90,48 @@ CREATE TABLE public.text_message (
     text text NOT NULL
 );
 
+-- DROP TABLE public.media_message;
+CREATE TABLE public.media_message (
+    text text,
+    id bigint PRIMARY KEY (id) REFERENCES public.message (id) MATCH SIMPLE ON ON DELETE CASCADE
+)
+
+-- DROP TABLE public.media_object;
+CREATE TABLE public.media_object (
+    id SERIAL PRIMARY KEY (id),
+    filetype character varying(40) NOT NULL,
+    message bigint NOT NULL REFERENCES public.media_message (id) MATCH SIMPLE ON DELETE CASCADE,
+    name character varying(80) NOT NULL,
+    meta json
+)
+
 CREATE OR REPLACE VIEW public.v_text_message AS
-SELECT m.id, t.text, m.sentdate, m.conversationid, m.userid, m.type
+SELECT m.id, t.text, m.sentdate, m.conversationid, m.userid, m.type, u.name as author
 FROM public.message m
-JOIN public.text_message t ON m.id = t.id;
+JOIN public.text_message t ON m.id = t.id
+JOIN public.user u ON m.userid = u.id;
 
 CREATE OR REPLACE VIEW public.v_code_message AS
-SELECT m.id, c.code, m.sentdate, m.conversationid, m.userid, m.type, c.title, c.language, c.lockedby
+SELECT 
+    m.id, 
+    c.code, 
+    m.sentdate, 
+    m.conversationid, 
+    m.userid, 
+    m.type, 
+    c.title, 
+    c.language, 
+    c.lockedby,
+    u.name as author
 FROM public.message m
-JOIN public.code_message c ON m.id = c.id;
+JOIN public.code_message c ON m.id = c.id
+JOIN public.user u ON m.userid = u.id;
+
+CREATE OR REPLACE VIEW public.v_media_message AS
+SELECT m.id, m.sentdate, m.conversationid, m.userid, m.type, mm.text, u.name as author, m.iscomplete
+FROM public.message m
+JOIN public.media_message mm ON m.id = mm.id
+JOIN public.user u ON m.userid = u.id;
 
 -- DROP TABLE public.message_status;
 CREATE TABLE public.message_status (

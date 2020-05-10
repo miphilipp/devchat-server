@@ -1,14 +1,17 @@
 package server
 
 import (
+	"bufio"
 	"net/http"
-	//"fmt"
+	"time"
+
 	"encoding/json"
 	"strconv"
 
 	"github.com/go-kit/kit/log/level"
 	"github.com/gorilla/mux"
 	core "github.com/miphilipp/devchat-server/internal"
+	"github.com/miphilipp/devchat-server/internal/communication/websocket"
 )
 
 func (s *Webserver) getMessages(writer http.ResponseWriter, request *http.Request) {
@@ -157,6 +160,132 @@ func (s *Webserver) getMessage(writer http.ResponseWriter, request *http.Request
 	json.NewEncoder(writer).Encode(message)
 }
 
-func (s *Webserver) serveMediaMessageRessource(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) uploadMedia(writer http.ResponseWriter, request *http.Request) {
 
+	userID := request.Context().Value("UserID").(int)
+	vars := mux.Vars(request)
+
+	conversationID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		level.Error(s.logger).Log("Handler", "uploadMedia", "err", err)
+		apiErrorPath := core.NewPathFormatError("Could not parse path component conversationID")
+		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
+		return
+	}
+
+	messageID, err := strconv.Atoi(vars["messageID"])
+	if err != nil {
+		level.Error(s.logger).Log("Handler", "uploadMedia", "err", err)
+		apiErrorPath := core.NewPathFormatError("Could not parse path component messageID")
+		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
+		return
+	}
+
+	err = request.ParseMultipartForm(2 << 20)
+	if err != nil {
+		level.Error(s.logger).Log("Handler", "uploadMedia", "err", err)
+		writeJSONError(writer, core.ErrUnknownError, http.StatusBadRequest)
+		return
+	}
+
+	var mediaCreationErr error
+	files := request.MultipartForm.File["files"]
+	for _, header := range files {
+		file, err := header.Open()
+		if err != nil {
+			level.Error(s.logger).Log("Handler", "uploadMedia", "err", err)
+			mediaCreationErr = err
+			break
+		}
+		defer file.Close()
+
+		buf := bufio.NewReaderSize(file, int(header.Size))
+		peakAmount := min(header.Size, 512)
+		sniff, err := buf.Peek(int(peakAmount))
+		if err != nil {
+			level.Error(s.logger).Log("Handler", "uploadMedia", "err", err)
+			mediaCreationErr = err
+			break
+		}
+
+		contentType := http.DetectContentType(sniff)
+		buffer := make([]byte, header.Size)
+		buf.Read(buffer)
+
+		err = s.messageService.AddFileToMessage(
+			userID,
+			conversationID,
+			messageID,
+			buffer,
+			s.config.MediaFolder,
+			header.Filename,
+			contentType,
+		)
+		if err != nil {
+			mediaCreationErr = err
+			break
+		}
+	}
+
+	err = s.messageService.CompleteMessage(messageID, mediaCreationErr)
+	if err != nil {
+		if !checkForAPIError(err, writer) {
+			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	message, err := s.messageService.GetMessage(userID, conversationID, messageID)
+	if err != nil {
+		if !checkForAPIError(err, writer) {
+			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
+		}
+		return
+	}
+	mediaMessage := message.(core.MediaMessage)
+
+	ctx := websocket.NewRequestContext(websocket.RESTCommand{
+		Ressource: "message",
+		Method:    websocket.PostCommandMethod,
+	}, -1, conversationID)
+	s.socket.BroadcastToRoom(conversationID, mediaMessage, ctx)
+}
+
+func (s *Webserver) serveMediaMessageRessource(writer http.ResponseWriter, request *http.Request) {
+	userID := request.Context().Value("UserID").(int)
+	vars := mux.Vars(request)
+
+	conversationID, err := strconv.Atoi(vars["conversationID"])
+	if err != nil {
+		level.Error(s.logger).Log("Handler", "serveMediaMessageRessource", "err", err)
+		apiErrorPath := core.NewPathFormatError("Could not parse path component conversationID")
+		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
+		return
+	}
+
+	fileName := vars["fileName"]
+	mediaObj, file, err := s.messageService.GetMediaObject(
+		userID,
+		conversationID,
+		fileName,
+		s.config.MediaFolder,
+	)
+	if err != nil {
+		if !checkForAPIError(err, writer) {
+			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
+		}
+		return
+	}
+	defer file.Close()
+
+	writer.Header().Set("Cache-Control", "max-age=5552000")
+	writer.Header().Set("Content-Type", mediaObj.MIMEType)
+	http.ServeContent(writer, request, "", time.Time{}, file)
+}
+
+func min(x, y int64) int64 {
+	if x < y {
+		return x
+	}
+	return y
 }

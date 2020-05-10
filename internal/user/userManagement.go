@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -19,7 +22,7 @@ type Service interface {
 
 	AuthenticateUser(username, password string) (int, error)
 	ChangePassword(userid int, oldPassword, newPassword string) error
-	ChangeOnlineState(userCtx int, state bool) error
+	UpdateOnlineTimestamp(userCtx int) error
 
 	DeleteAccount(userID int) error
 	CreateAccount(newUser core.User, password, serverAddr string) error
@@ -28,52 +31,70 @@ type Service interface {
 	ResetPassword(recoveryUUID, newPassword string) (string, error)
 	SendPasswordResetMail(emailAddress, baseURL, language string) error
 
-	SaveAvatar(filePath, fileType string, buffer []byte) error
-	DeleteAvatar(filePath string) error
+	SaveAvatar(userID int, pathPrefix, fileType string, buffer []byte) error
+	DeleteAvatar(pathPrefix string, userID int) error
+	GetAvatar(userID int, pathPrefix string, nodefault bool) (string, time.Time, error)
+}
+
+type Config struct {
+	AllowSignup              bool
+	LockOutTimeMinutes       time.Duration
+	NLoginAttempts           int
+	PasswordResetTimeMinutes time.Duration
 }
 
 type service struct {
-	repo                     core.UserRepo
-	mailing                  core.MailingService
-	lockOutTimeMinutes       int
-	nLoginAttempts           int
-	passwordResetTimeMinutes int
+	repo    core.UserRepo
+	mailing core.MailingService
+	cfg     Config
 }
 
-func NewService(repo core.UserRepo, mailing core.MailingService) Service {
+// NewService creates a new user managment service.
+func NewService(repo core.UserRepo, mailing core.MailingService, cfg Config) Service {
+	if cfg.LockOutTimeMinutes == 0 {
+		cfg.LockOutTimeMinutes = 5
+	}
+
+	if cfg.NLoginAttempts == 0 {
+		cfg.NLoginAttempts = 5
+	}
+
+	if cfg.PasswordResetTimeMinutes == 0 {
+		cfg.PasswordResetTimeMinutes = 30
+	}
+
 	return &service{
 		repo:    repo,
 		mailing: mailing,
+		cfg:     cfg,
 	}
 }
 
-func (s *service) SaveAvatar(filePath, fileType string, buffer []byte) error {
-	if fileType != "image/png" {
+func (s *service) SaveAvatar(userID int, pathPrefix, fileType string, buffer []byte) error {
+	if !strings.HasPrefix(fileType, "image/") {
 		return core.ErrInvalidFileType
 	}
 
-	err := ioutil.WriteFile(filePath, buffer, 0644)
+	err := ioutil.WriteFile(path.Join(pathPrefix, strconv.Itoa(userID)), buffer, 0644)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *service) DeleteAvatar(filePath string) error {
-	err := os.Remove(filePath)
+func (s *service) DeleteAvatar(pathPrefix string, userID int) error {
+	err := os.Remove(path.Join(pathPrefix, strconv.Itoa(userID)))
 	if err != nil {
 		e, ok := err.(*os.PathError)
-		if ok && e.Err == syscall.ENOENT {
-			return core.ErrRessourceDoesNotExist
-		} else {
+		if !ok || e.Err != syscall.ENOENT {
 			return err
 		}
 	}
 	return nil
 }
 
-func (s *service) ChangeOnlineState(userCtx int, state bool) error {
-	return s.repo.UpdateOnlineState(userCtx, state)
+func (s *service) UpdateOnlineTimestamp(userCtx int) error {
+	return s.repo.UpdateOnlineState(userCtx)
 }
 
 func (s *service) AuthenticateUser(username, password string) (int, error) {
@@ -90,7 +111,7 @@ func (s *service) AuthenticateUser(username, password string) (int, error) {
 		return -1, core.ErrAccountNotConfirmed
 	}
 
-	if !user.LockedOutSince.IsZero() && user.LockedOutSince.Add(time.Minute*5).After(time.Now().UTC()) {
+	if !user.LockedOutSince.IsZero() && user.LockedOutSince.Add(time.Minute*s.cfg.LockOutTimeMinutes).After(time.Now().UTC()) {
 		return -1, core.ErrLockedOut
 	}
 
@@ -101,12 +122,7 @@ func (s *service) AuthenticateUser(username, password string) (int, error) {
 
 	if id == -1 {
 		if user.LastFailedLogin.IsZero() || user.LastFailedLogin.Add(time.Hour).After(time.Now().UTC()) {
-			err = s.repo.IncrementFailedLoginAttempts(username)
-			if err != nil {
-				return -1, err
-			}
-
-			if user.FailedLoginAttempts+1 > 5 {
+			if user.FailedLoginAttempts+1 > s.cfg.NLoginAttempts {
 				_ = s.repo.LockUser(user.ID)
 				return -1, core.ErrLockedOut
 			}
@@ -115,6 +131,11 @@ func (s *service) AuthenticateUser(username, password string) (int, error) {
 			if err != nil {
 				return -1, err
 			}
+		}
+
+		err = s.repo.IncrementFailedLoginAttempts(username)
+		if err != nil {
+			return -1, err
 		}
 
 		return -1, nil
@@ -145,6 +166,10 @@ func (s *service) DeleteAccount(userID int) error {
 }
 
 func (s *service) CreateAccount(newUser core.User, password, serverAddr string) error {
+	if s.cfg.AllowSignup == false {
+		return core.ErrFeatureDeactivated
+	}
+
 	_, err := s.GetUserForName(newUser.Name)
 	if err != nil && err != core.ErrUserDoesNotExist {
 		return err
@@ -208,6 +233,25 @@ func (s *service) sendConfirmationRequest(emailAddress string, confirmationUUID 
 	}
 
 	return nil
+}
+
+func (s *service) GetAvatar(userID int, pathPrefix string, nodefault bool) (string, time.Time, error) {
+	modTime := time.Time{}
+	avatarPath := path.Join(pathPrefix, strconv.Itoa(userID))
+	stats, err := os.Stat(avatarPath)
+	if os.IsNotExist(err) {
+		if nodefault {
+			return "", modTime, core.ErrRessourceDoesNotExist
+		}
+
+		avatarPath = path.Join(pathPrefix, "default.png")
+	} else if err != nil {
+		return "", modTime, err
+	} else {
+		modTime = stats.ModTime()
+	}
+
+	return avatarPath, modTime, nil
 }
 
 // checkPasswordPolicy returns true when the requirements are not met,

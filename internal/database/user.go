@@ -87,7 +87,6 @@ func (r *userRepository) CreateUser(user core.User, password string) (core.User,
 		Name:             userOutput.Name,
 		Email:            userOutput.Email,
 		ConfirmationUUID: userOutput.ConfirmationUUID,
-		//LanguageCode: userOutput.languageCode,
 	}, err
 }
 
@@ -179,7 +178,6 @@ func (r *userRepository) GetUserForID(userID int) (core.User, error) {
 		ID:    userOutput.ID,
 		Name:  userOutput.Name,
 		Email: userOutput.Email,
-		//LanguageCode: userOutput.languageCode,
 	}, nil
 }
 
@@ -226,7 +224,6 @@ func (r *userRepository) GetUserForName(name string) (core.User, error) {
 		LastFailedLogin:     userOutput.LastFailedLogin,
 		IsDeleted:           userOutput.IsDeleted,
 		ConfirmationUUID:    userOutput.ConfirmationUUID,
-		//LanguageCode: userOutput.languageCode,
 	}, nil
 }
 
@@ -277,12 +274,11 @@ func (r *userRepository) UnlockUser(userID int) error {
 	return nil
 }
 
-func (r *userRepository) UpdateOnlineState(userID int, state bool) error {
+func (r *userRepository) UpdateOnlineState(userID int) error {
 	res, err := r.db.Exec(
 		`UPDATE public.user 
-		SET isonline = ? 
-		WHERE id = ? AND isdeleted = false;`,
-		userID, state)
+		set lastonline = current_timestamp at time zone 'utc'
+		WHERE id = ? AND isdeleted = false;`, userID)
 	if err != nil {
 		return core.NewDataBaseError(err)
 	}

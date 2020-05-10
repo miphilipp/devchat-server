@@ -1,5 +1,7 @@
 package websocket
 
+import "context"
+
 const (
 	GetCommandMethod = iota + 1
 	DeleteCommandMethod
@@ -8,6 +10,12 @@ const (
 	NotifyCommandMethod
 	ErrorCommandMethod
 	HeartbeatCommandMethod
+)
+
+const (
+	RequestContextCommandKey = "command"
+	RequestContextSourceKey  = "Source"
+	RequestContextIDKey      = "id"
 )
 
 type RESTCommand struct {
@@ -20,6 +28,12 @@ type messageFrame struct {
 	Source  int         `json:"source"`
 	ID      int         `json:"id"`
 	Payload interface{} `json:"payload"`
+}
+
+func NewRequestContext(command RESTCommand, id, sourceCtx int) context.Context {
+	ctx := context.WithValue(context.Background(), RequestContextCommandKey, command)
+	ctx = context.WithValue(ctx, RequestContextSourceKey, sourceCtx)
+	return context.WithValue(ctx, RequestContextIDKey, id)
 }
 
 func newFrame(source, id int, command RESTCommand, payload interface{}) messageFrame {

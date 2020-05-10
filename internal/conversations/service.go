@@ -1,7 +1,6 @@
 package conversations
 
 import (
-	//"fmt"
 	core "github.com/miphilipp/devchat-server/internal"
 )
 
@@ -118,6 +117,8 @@ func (s *service) DeleteConversation(userCtx int, conversationID int) error {
 	} else {
 		return core.ErrAccessDenied
 	}
+
+	//TODO: Medienobjekte löschen
 
 	return nil
 }

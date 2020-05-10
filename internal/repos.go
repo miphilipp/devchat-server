@@ -42,7 +42,7 @@ type UserRepo interface {
 	IncrementFailedLoginAttempts(user string) error
 	SetPassword(user int, newPassword string) error
 	CreateRecoverID(emailAddress string) (uuid.UUID, error)
-	UpdateOnlineState(userID int, state bool) error
+	UpdateOnlineState(userID int) error
 	RecoverPassword(recoveryUUID uuid.UUID, password string) (string, error)
 
 	// Queries
@@ -62,16 +62,24 @@ type MessageRepo interface {
 	// Mutations
 	StoreTextMessage(conversation, user int, m TextMessage) (int, error)
 	StoreCodeMessage(conversation, user int, m CodeMessage) (int, error)
+	StoreMediaMessage(conversation, user int, m MediaMessage) (int, error)
 	SetReadFlags(userid, conversationID int) error
 	UpdateCode(messageID int, newCode, title, language string) error
 	SetLockedSateForCodeMessage(messageID int, lockingUserID int) error
+	CreateMediaObject(messageID int, name, fileType string) (int, error)
+	SetMetaOfMediaMessage(id int, meta interface{}) error
+	DeleteMessage(id int) error
+	UpdateCompleteFlag(id int) error
 
 	// Queries
 	FindForConversation(conversationID, beforeInSequence, limit int) ([]interface{}, error)
 	FindCodeMessagesForConversation(conversationID, beforeInSequence, limit int) ([]interface{}, error)
 	FindTextMessagesForConversation(conversationID, beforeInSequence, limit int) ([]interface{}, error)
+	FindMediaMessagesForConversation(conversationID, beforeInSequence, limit int) ([]interface{}, error)
 	FindCodeMessageForID(messageID, conversationID int) (CodeMessage, error)
 	FindTextMessageForID(messageID, conversationID int) (TextMessage, error)
+	FindMediaMessageForID(messageID, conversationID int) (MediaMessage, error)
 	FindMessageStubForConversation(conversationID, messageID int) (Message, error)
 	FindAllProgrammingLanguages() ([]ProgrammingLanguage, error)
+	FindMediaObjectForID(id, conversationID int) (MediaObject, error)
 }

@@ -92,7 +92,12 @@ func main() {
 	)
 
 	var userService user.Service
-	userService = user.NewService(userRepo, mailingService)
+	userService = user.NewService(userRepo, mailingService, user.Config{
+		NLoginAttempts:           cfg.UserService.NLoginAttempts,
+		LockOutTimeMinutes:       cfg.UserService.LockOutTimeMinutes,
+		PasswordResetTimeMinutes: cfg.UserService.PasswordResetTimeMinutes,
+		AllowSignup:              cfg.UserService.AllowSignUp,
+	})
 	userService = user.NewLoggingService(logger, userService, verbose)
 
 	var conversationService conversations.Service
@@ -124,6 +129,7 @@ func main() {
 	socket := websocket.New(
 		messagingService,
 		conversationService,
+		userService,
 		limiterStore,
 		log.WithPrefix(logger, "Interface", "websocket"))
 	if socket == nil {
@@ -138,6 +144,9 @@ func main() {
 			AllowedRequestsPerMinute: cfg.Server.AllowedRequestsPerMinute,
 			MediaTokenSecret:         []byte(cfg.Server.MediaJWTSecret),
 			RootURL:                  cfg.Server.RootURL,
+			AvatarFolder:             cfg.Server.AvatarFolder,
+			MediaFolder:              cfg.Server.MediaFolder,
+			Webpages:                 cfg.Server.Webpages,
 		},
 		userService,
 		conversationService,
@@ -162,7 +171,7 @@ func main() {
 
 	var redirectServer *http.Server
 	if useSSL {
-		redirectServer = server.NewRedirectServer()
+		redirectServer = server.NewRedirectServer(cfg.Server.RootURL)
 		go func() {
 			err = redirectServer.ListenAndServe()
 			logger.Log("Reason for quitting", err)

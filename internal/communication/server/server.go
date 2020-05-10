@@ -32,9 +32,12 @@ type ServerConfig struct {
 	Addr                     string
 	IndexFileName            string
 	AssetsFolder             string
+	AvatarFolder             string
+	MediaFolder              string
 	RootURL                  string
 	AllowedRequestsPerMinute int
 	MediaTokenSecret         []byte
+	Webpages                 []string
 }
 
 type Webserver struct {
@@ -50,13 +53,12 @@ type Webserver struct {
 	userService         user.Service
 	conversationService conversations.Service
 	messageService      messaging.Service
-
-	actualWebpages []string
 }
 
 func (s *Webserver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path, err := filepath.Abs(r.URL.Path)
 	if err != nil {
+		level.Error(s.logger).Log("handler", "default", "err", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -68,10 +70,11 @@ func (s *Webserver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, err = os.Stat(path)
 	if os.IsNotExist(err) {
 		// file does not exist, serve index.html
-		if containsPath(s.actualWebpages, r.URL.Path) {
+		if containsPath(s.config.Webpages, r.URL.Path) {
 			if pusher, ok := w.(http.Pusher); ok {
 				s.pushFiles(pusher, r)
 			}
+			w.Header().Set("Cache-Control", "no-cache")
 			http.ServeFile(w, r, filepath.Join(s.config.AssetsFolder, s.config.IndexFileName))
 		} else {
 			writeJSONError(w, core.ErrRessourceDoesNotExist, http.StatusNotFound)
@@ -81,11 +84,12 @@ func (s *Webserver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// if we got an error (that wasn't that the file doesn't exist) stating the
 		// file, return a 500 internal server error and stop
 		level.Error(s.logger).Log("handler", "default", "err", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeJSONError(w, core.ErrUnknownError, http.StatusNotFound)
 		return
 	}
 
 	// otherwise, use http.FileServer to serve the static dir
+	w.Header().Set("Cache-Control", "max-age=31536000")
 	http.FileServer(http.Dir(s.config.AssetsFolder)).ServeHTTP(w, r)
 }
 
@@ -159,14 +163,13 @@ func New(
 		logger:              logger,
 		socket:              socket,
 		session:             session,
-		actualWebpages:      []string{"/login", "/forgot", "/", "/preferences", "/confirm"},
 	}
 
 	if cfg.AllowedRequestsPerMinute == 0 {
 		cfg.AllowedRequestsPerMinute = 10
 	}
 
-	quota := throttled.RateQuota{MaxRate: throttled.PerMin(cfg.AllowedRequestsPerMinute), MaxBurst: 3}
+	quota := throttled.RateQuota{MaxRate: throttled.PerMin(cfg.AllowedRequestsPerMinute), MaxBurst: 5}
 	rateLimiter, err := throttled.NewGCRARateLimiter(limiterStore, quota)
 	if err != nil {
 		return nil
@@ -186,7 +189,7 @@ func New(
 
 // SetupFileServer sets up file server handlers for all webpages and its subpages.
 func (s *Webserver) SetupFileServer() {
-	for _, path := range s.actualWebpages {
+	for _, path := range s.config.Webpages {
 		s.router.PathPrefix(path).Handler(s).Methods(http.MethodGet)
 	}
 }

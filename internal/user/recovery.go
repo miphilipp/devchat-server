@@ -43,7 +43,7 @@ func (s *service) ResetPassword(recoveryUUID string, newPassword string) (string
 		return "", err
 	}
 
-	if time.Now().Add(-5 * time.Minute).UTC().After(issueDate) {
+	if time.Now().Add(-s.cfg.PasswordResetTimeMinutes * time.Minute).UTC().After(issueDate) {
 		return "", core.ErrExpired
 	}
 

@@ -2,6 +2,7 @@ package server
 
 import (
 	//"errors"
+
 	"encoding/json"
 	"net/http"
 
@@ -34,7 +35,9 @@ func (s *Webserver) postInvitation(writer http.ResponseWriter, request *http.Req
 		Ressource: "invitation",
 		Method:    websocket.PostCommandMethod,
 	}
-	s.socket.SendToClient(invitation.Recipient, -1, 0, command, invitation)
+
+	ctx := websocket.NewRequestContext(command, -1, invitation.ConversationID)
+	s.socket.Unicast(ctx, invitation.Recipient, invitation)
 
 	user, err := s.userService.GetUserForID(invitation.Recipient)
 	if err != nil {
@@ -49,7 +52,9 @@ func (s *Webserver) postInvitation(writer http.ResponseWriter, request *http.Req
 			},
 			user.Name,
 		}
-		s.socket.BroadcastToRoom(invitation.ConversationID, command, broadcast, -1)
+
+		ctx := websocket.NewRequestContext(command, -1, invitation.ConversationID)
+		s.socket.BroadcastToRoom(invitation.ConversationID, broadcast, ctx)
 	}
 
 	writer.WriteHeader(http.StatusOK)
@@ -74,13 +79,11 @@ func (s *Webserver) deleteInvitation(writer http.ResponseWriter, request *http.R
 		return
 	}
 
-	s.socket.BroadcastToRoom(
-		invitation.ConversationID,
-		websocket.RESTCommand{
-			Ressource: "invitation",
-			Method:    websocket.DeleteCommandMethod,
-		}, invitation, -1,
-	)
+	ctx := websocket.NewRequestContext(websocket.RESTCommand{
+		Ressource: "invitation",
+		Method:    websocket.DeleteCommandMethod,
+	}, -1, invitation.ConversationID)
+	s.socket.BroadcastToRoom(invitation.ConversationID, invitation, ctx)
 
 	writer.WriteHeader(http.StatusOK)
 }
@@ -121,13 +124,11 @@ func (s *Webserver) patchInvitation(writer http.ResponseWriter, request *http.Re
 			Recipient      int `json:"recipient"`
 		}{conversationID, userID}
 
-		s.socket.BroadcastToRoom(
-			conversationID,
-			websocket.RESTCommand{
-				Ressource: "invitation",
-				Method:    websocket.DeleteCommandMethod,
-			}, reply, -1,
-		)
+		ctx := websocket.NewRequestContext(websocket.RESTCommand{
+			Ressource: "invitation",
+			Method:    websocket.DeleteCommandMethod,
+		}, -1, conversationID)
+		s.socket.BroadcastToRoom(conversationID, reply, ctx)
 
 	} else if requestBody.Action == "accept" {
 		colorIndex, err := s.conversationService.JoinConversation(userID, conversationID)
@@ -144,13 +145,12 @@ func (s *Webserver) patchInvitation(writer http.ResponseWriter, request *http.Re
 			ColorIndex     int `json:"colorIndex"`
 		}{conversationID, userID, colorIndex}
 
-		s.socket.BroadcastToRoom(
-			conversationID,
-			websocket.RESTCommand{
-				Ressource: "invitation",
-				Method:    websocket.PatchCommandMethod,
-			}, reply, -1,
-		)
+		ctx := websocket.NewRequestContext(websocket.RESTCommand{
+			Ressource: "invitation",
+			Method:    websocket.PatchCommandMethod,
+		}, -1, conversationID)
+		s.socket.BroadcastToRoom(conversationID, reply, ctx)
+
 		s.socket.JoinRoom(conversationID, userID)
 	} else {
 		level.Warn(s.logger).Log("Handler", "patchInvitation", "err", "Invalid Action")

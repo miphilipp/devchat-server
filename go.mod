@@ -12,6 +12,7 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
+	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/sergi/go-diff v1.1.0
 	github.com/throttled/throttled v2.2.4+incompatible
 	golang.org/x/text v0.3.2

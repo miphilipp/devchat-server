@@ -1,7 +1,9 @@
 package messaging
 
 import (
+	"context"
 	"encoding/json"
+	"os"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -31,7 +33,12 @@ func (s *loggingService) ReadMessages(userID int, message json.RawMessage) (err 
 	return s.next.ReadMessages(userID, message)
 }
 
-func (s *loggingService) SendMessage(target int, userID int, message json.RawMessage) (answer interface{}, err error) {
+func (s *loggingService) SendMessage(
+	target, userID int,
+	message json.RawMessage,
+	pusher core.Pusher,
+	ctx context.Context) (answer interface{}, err error) {
+
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
@@ -42,10 +49,10 @@ func (s *loggingService) SendMessage(target int, userID int, message json.RawMes
 				"err", err)
 		}
 	}(time.Now())
-	return s.next.SendMessage(target, userID, message)
+	return s.next.SendMessage(target, userID, message, pusher, ctx)
 }
 
-func (s *loggingService) ListAllMessages(userID int, conversationID int, beforeInSequence int, limit int, mType core.MessageType) (messages []interface{}, err error) {
+func (s *loggingService) ListAllMessages(userID, conversationID, beforeInSequence, limit int, mType core.MessageType) (messages []interface{}, err error) {
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
@@ -74,7 +81,7 @@ func (s *loggingService) ListProgrammingLanguages() (languages []core.Programmin
 	return s.next.ListProgrammingLanguages()
 }
 
-func (s *loggingService) GetCodeOfMessage(userCtx int, conversationID int, messageID int) (code string, err error) {
+func (s *loggingService) GetCodeOfMessage(userCtx, conversationID int, messageID int) (code string, err error) {
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
@@ -89,7 +96,12 @@ func (s *loggingService) GetCodeOfMessage(userCtx int, conversationID int, messa
 	return s.next.GetCodeOfMessage(userCtx, conversationID, messageID)
 }
 
-func (s *loggingService) EditMessage(userCtx int, conversationID int, message json.RawMessage) (messageID int, err error) {
+func (s *loggingService) EditMessage(
+	userCtx, conversationID int,
+	message json.RawMessage,
+	pusher core.Pusher,
+	ctx context.Context) (messageID int, err error) {
+
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
@@ -100,10 +112,34 @@ func (s *loggingService) EditMessage(userCtx int, conversationID int, message js
 				"err", err)
 		}
 	}(time.Now())
-	return s.next.EditMessage(userCtx, conversationID, message)
+	return s.next.EditMessage(userCtx, conversationID, message, pusher, ctx)
 }
 
-func (s *loggingService) ToggleLiveSession(userCtx, conversationID int, state bool, message json.RawMessage) (messageID int, err error) {
+func (s *loggingService) LiveEditMessage(
+	userCtx, conversationID int,
+	message json.RawMessage,
+	pusher core.Pusher,
+	ctx context.Context) (messageID int, err error) {
+	defer func(begin time.Time) {
+		if err != nil || s.verbose {
+			s.logger.Log(
+				"Use-Case", "LiveEditMessage",
+				"userCtx", userCtx,
+				"conversationID", conversationID,
+				"took", time.Since(begin),
+				"err", err)
+		}
+	}(time.Now())
+	return s.next.LiveEditMessage(userCtx, conversationID, message, pusher, ctx)
+}
+
+func (s *loggingService) ToggleLiveSession(
+	userCtx, conversationID int,
+	state bool,
+	message json.RawMessage,
+	pusher core.Pusher,
+	ctx context.Context) (messageID int, err error) {
+
 	defer func(begin time.Time) {
 		if err != nil || s.verbose {
 			s.logger.Log(
@@ -115,7 +151,7 @@ func (s *loggingService) ToggleLiveSession(userCtx, conversationID int, state bo
 				"err", err)
 		}
 	}(time.Now())
-	return s.next.ToggleLiveSession(userCtx, conversationID, state, message)
+	return s.next.ToggleLiveSession(userCtx, conversationID, state, message, pusher, ctx)
 }
 
 func (s *loggingService) GetMessage(userCtx, conversationID, messageID int) (message interface{}, err error) {
@@ -130,4 +166,47 @@ func (s *loggingService) GetMessage(userCtx, conversationID, messageID int) (mes
 		}
 	}(time.Now())
 	return s.next.GetMessage(userCtx, conversationID, messageID)
+}
+
+func (s *loggingService) AddFileToMessage(
+	userCtx, conversationID, messageID int,
+	fileBuffer []byte,
+	pathPrefix, fileName, fileType string) (err error) {
+	defer func(begin time.Time) {
+		if err != nil || s.verbose {
+			s.logger.Log(
+				"Use-Case", "AddFileToMessage",
+				"userCtx", userCtx,
+				"conversationID", conversationID,
+				"messageID", messageID,
+				"fileType", fileType,
+				"took", time.Since(begin),
+				"err", err)
+		}
+	}(time.Now())
+	return s.next.AddFileToMessage(userCtx, conversationID, messageID, fileBuffer, pathPrefix, fileName, fileType)
+}
+
+func (s *loggingService) GetMediaObject(
+	userCtx, conversationID int, fileName, pathPrefix string) (mediaObj core.MediaObject, file *os.File, err error) {
+	defer func(begin time.Time) {
+		if err != nil || s.verbose {
+			s.logger.Log(
+				"Use-Case", "GetMediaObject",
+				"userCtx", userCtx,
+				"conversationID", conversationID,
+				"file", fileName,
+				"took", time.Since(begin),
+				"err", err)
+		}
+	}(time.Now())
+	return s.next.GetMediaObject(userCtx, conversationID, fileName, pathPrefix)
+}
+
+func (s *loggingService) BroadcastUserIsTyping(userCtx, conversationID int, pusher core.Pusher, ctx context.Context) (err error) {
+	return s.next.BroadcastUserIsTyping(userCtx, conversationID, pusher, ctx)
+}
+
+func (s *loggingService) CompleteMessage(id int, err error) error {
+	return s.next.CompleteMessage(id, err)
 }

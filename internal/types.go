@@ -1,6 +1,8 @@
 package core
 
 import (
+	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,9 +26,17 @@ const (
 	// CodeMessageType represents the type of a code message.
 	CodeMessageType MessageType = 1
 
+	// MediaMessageType represents a type of message that can hold various types of files.
+	MediaMessageType MessageType = 2
+
 	// UndefinedMesssageType represents a message of any kind.
 	UndefinedMesssageType MessageType = -1
 )
+
+type Pusher interface {
+	BroadcastToRoom(roomNumber int, payload interface{}, ctx context.Context)
+	Unicast(ctx context.Context, userID int, payload interface{})
+}
 
 // Cronological is used to enable chronological sorting
 type Cronological interface {
@@ -81,6 +91,21 @@ type CodeMessage struct {
 	LockedBy int    `json:"lockedBy" pg:"lockedby"`
 }
 
+// MediaObject represents a file.
+type MediaObject struct {
+	ID       int             `json:"id"`
+	MIMEType string          `json:"mimeType" pg:"filetype"`
+	Name     string          `json:"name"`
+	Meta     json.RawMessage `json:"meta"`
+}
+
+// MediaMessage is derived from Message.
+type MediaMessage struct {
+	Message
+	Text  string        `json:"text"`
+	Files []MediaObject `json:"files"`
+}
+
 // GetDate makes Message implement the Cronological interface.
 func (m Message) GetDate() time.Time {
 	return m.Sentdate
@@ -111,7 +136,12 @@ func (m TextMessage) GetSequenceNumber() int {
 	return m.ID
 }
 
-// User
+// GetSequenceNumber makes MediaMessage implement the Sequencable interface.
+func (m MediaMessage) GetSequenceNumber() int {
+	return m.ID
+}
+
+// User contains the information of actual users that can sign in to the app.
 type User struct {
 	ID                  int       `pg:"id" json:"id"`
 	Email               string    `pg:"email" json:"email,omitempty"`
@@ -138,4 +168,9 @@ type UserInConversation struct {
 type ProgrammingLanguage struct {
 	Name       string `json:"name"`
 	IsRunnable bool   `pg:"IsRunnable" json:"isRunnable"`
+}
+
+type Size struct {
+	Width  int `json:"width"`
+	Height int `json:"height"`
 }

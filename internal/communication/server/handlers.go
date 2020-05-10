@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	core "github.com/miphilipp/devchat-server/internal"
@@ -62,19 +61,16 @@ func (s *Webserver) SetupRestHandlers() {
 
 	api := s.router.PathPrefix("/api/v1").Subrouter()
 	api.Use(s.generateAuthenticateSession())
-
 	media := s.router.PathPrefix("/media").Subrouter()
-	media.Use(s.generateMediaAuthenticationMiddleware())
-	media.HandleFunc("/user/{userid}/avatar", func(writer http.ResponseWriter, request *http.Request) {
+	media.Use(s.generateAuthenticateSession())
+	media.HandleFunc("/user/{userid:[0-9]+}/avatar", func(writer http.ResponseWriter, request *http.Request) {
 		s.serveUserAvatar(writer, request)
 	}).Methods(http.MethodGet)
-	media.HandleFunc("/conversation/{conversationID}/message/{messageID}/media", func(writer http.ResponseWriter, request *http.Request) {
-		s.serveMediaMessageRessource(writer, request)
-	}).Methods(http.MethodGet)
 
-	api.HandleFunc("/mediatoken", func(writer http.ResponseWriter, request *http.Request) {
-		s.getMediaToken(writer, request)
-	}).Methods(http.MethodGet)
+	media.HandleFunc("/conversation/{conversationID:[0-9]+}/{fileName}",
+		func(writer http.ResponseWriter, request *http.Request) {
+			s.serveMediaMessageRessource(writer, request)
+		}).Methods(http.MethodGet)
 
 	api.HandleFunc("/conversation", func(writer http.ResponseWriter, request *http.Request) {
 		s.getConversation(writer, request)
@@ -84,25 +80,32 @@ func (s *Webserver) SetupRestHandlers() {
 		s.postConversation(writer, request)
 	}).Methods(http.MethodPost)
 
-	api.HandleFunc("/conversation/{id}", func(writer http.ResponseWriter, request *http.Request) {
+	api.HandleFunc("/conversation/{id:[0-9]+}", func(writer http.ResponseWriter, request *http.Request) {
 		s.deleteConversation(writer, request)
 	}).Methods(http.MethodDelete)
 
-	api.HandleFunc("/conversation/{id}", func(writer http.ResponseWriter, request *http.Request) {
+	api.HandleFunc("/conversation/{id:[0-9]+}", func(writer http.ResponseWriter, request *http.Request) {
 		s.patchConversation(writer, request)
 	}).Methods(http.MethodPatch)
 
-	api.HandleFunc("/conversation/{id}/users", func(writer http.ResponseWriter, request *http.Request) {
+	api.HandleFunc("/conversation/{id:[0-9]+}/users", func(writer http.ResponseWriter, request *http.Request) {
 		s.getMembersOfConversation(writer, request)
 	}).Methods(http.MethodGet)
 
-	api.HandleFunc("/conversation/{conversationID}/users/{userID}", func(writer http.ResponseWriter, request *http.Request) {
-		s.deleteUserFromConversation(writer, request)
-	}).Methods(http.MethodDelete)
+	api.HandleFunc("/conversation/{id:[0-9]+}/message/{messageID:[0-9]+}/upload",
+		func(writer http.ResponseWriter, request *http.Request) {
+			s.uploadMedia(writer, request)
+		}).Methods(http.MethodPatch)
 
-	api.HandleFunc("/conversation/{conversationID}/users/{userID}", func(writer http.ResponseWriter, request *http.Request) {
-		s.patchAdminStatus(writer, request)
-	}).Methods(http.MethodPatch)
+	api.HandleFunc("/conversation/{conversationID:[0-9]+}/users/{userID:[0-9]+}",
+		func(writer http.ResponseWriter, request *http.Request) {
+			s.deleteUserFromConversation(writer, request)
+		}).Methods(http.MethodDelete)
+
+	api.HandleFunc("/conversation/{conversationID:[0-9]+}/users/{userID}",
+		func(writer http.ResponseWriter, request *http.Request) {
+			s.patchAdminStatus(writer, request)
+		}).Methods(http.MethodPatch)
 
 	api.HandleFunc("/invitation", func(writer http.ResponseWriter, request *http.Request) {
 		s.getInvitations(writer, request)
@@ -144,18 +147,19 @@ func (s *Webserver) SetupRestHandlers() {
 		s.getUsers(writer, request)
 	}).Queries("prefix", "{prefix}").Methods(http.MethodGet)
 
-	api.HandleFunc("/conversation/{id}/messages", func(writer http.ResponseWriter, request *http.Request) {
+	api.HandleFunc("/conversation/{id:[0-9]+}/messages", func(writer http.ResponseWriter, request *http.Request) {
 		s.getMessages(writer, request)
 	}).Methods(http.MethodGet)
 
-	api.HandleFunc("/conversation/{id}/messages/{messageID}/code", func(writer http.ResponseWriter, request *http.Request) {
-		s.getCodeOfMessage(writer, request)
-	}).Methods(http.MethodGet)
+	api.HandleFunc("/conversation/{id:[0-9]+}/messages/{messageID}/code",
+		func(writer http.ResponseWriter, request *http.Request) {
+			s.getCodeOfMessage(writer, request)
+		}).Methods(http.MethodGet)
 
-	api.HandleFunc("/conversation/{id}/messages/{messageID}", func(writer http.ResponseWriter, request *http.Request) {
-		fmt.Println("getMessage")
-		s.getMessage(writer, request)
-	}).Methods(http.MethodGet)
+	api.HandleFunc("/conversation/{id:[0-9]+}/messages/{messageID}",
+		func(writer http.ResponseWriter, request *http.Request) {
+			s.getMessage(writer, request)
+		}).Methods(http.MethodGet)
 
 	api.HandleFunc("/programmingLanguages", func(writer http.ResponseWriter, request *http.Request) {
 		s.getProgrammingLanguages(writer, request)
