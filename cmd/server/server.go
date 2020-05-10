@@ -1,7 +1,6 @@
 package main
 
 import (
-	//"fmt"
 	"context"
 	"flag"
 	"fmt"
@@ -29,13 +28,13 @@ func main() {
 	var configPath string
 	var showVersion bool
 
-	flag.BoolVar(&verbose, "verbose", false, "If true, every called use case is logged.")
+	flag.BoolVar(&verbose, "verbose", false, "If true, every called use-case is logged.")
 	flag.StringVar(&configPath, "configPath", "./config.yaml", "The path to the config file.")
-	flag.BoolVar(&showVersion, "version", false, "Prints the version of this application.")
+	flag.BoolVar(&showVersion, "version", false, "Prints the version of this application and exits.")
 	flag.Parse()
 
 	if showVersion {
-		fmt.Println("0.5")
+		fmt.Println("0.6")
 		os.Exit(0)
 	}
 
@@ -192,9 +191,7 @@ func main() {
 	if err != nil {
 		level.Error(logger).Log("System", "SessionPersistance", "err", err)
 	}
-	// Optionally, you could run srv.Shutdown in a goroutine and block on
-	// <-ctx.Done() if your application should wait for other services
-	// to finalize based on context cancellation.
+
 	level.Info(logger).Log("Messsage", "shutting down")
 	os.Exit(0)
 }
