@@ -141,7 +141,6 @@ func main() {
 			IndexFileName:            cfg.Server.IndexFileName,
 			AssetsFolder:             cfg.Server.AssetsFolder,
 			AllowedRequestsPerMinute: cfg.Server.AllowedRequestsPerMinute,
-			MediaTokenSecret:         []byte(cfg.Server.MediaJWTSecret),
 			RootURL:                  cfg.Server.RootURL,
 			AvatarFolder:             cfg.Server.AvatarFolder,
 			MediaFolder:              cfg.Server.MediaFolder,

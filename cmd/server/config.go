@@ -19,7 +19,6 @@ type config struct {
 		CertFile                 string        `yaml:"certFile"`
 		KeyFile                  string        `yaml:"keyFile"`
 		JWTSecret                string        `yaml:"jwtSecret"`
-		MediaJWTSecret           string        `yaml:"mediaJwtSecret"`
 		AllowedRequestsPerMinute int           `yaml:"allowedRequestsPerMinute"`
 		Webpages                 []string      `yaml:"webpages"`
 	} `yaml:"server"`

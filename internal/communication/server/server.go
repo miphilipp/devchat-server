@@ -36,7 +36,6 @@ type ServerConfig struct {
 	MediaFolder              string
 	RootURL                  string
 	AllowedRequestsPerMinute int
-	MediaTokenSecret         []byte
 	Webpages                 []string
 }
 
