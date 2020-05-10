@@ -31,6 +31,12 @@ var (
 	}
 )
 
+type endpoint struct {
+	command   RESTCommand
+	isLimited bool
+	handler   func(ctx context.Context, clientID int, frame messageFrame) error
+}
+
 type Server struct {
 	Messaging     messaging.Service
 	Conversations conversations.Service
@@ -38,6 +44,8 @@ type Server struct {
 
 	logger  log.Logger
 	limiter *WebsocketRateLimiter
+
+	endpoints []endpoint
 
 	rooms struct {
 		sync.RWMutex
@@ -64,6 +72,7 @@ func New(
 		User:          userService,
 		logger:        logger,
 		limiter:       limiter,
+		endpoints:     make([]endpoint, 0, 10),
 		rooms: struct {
 			sync.RWMutex
 			m map[int]*room
@@ -79,6 +88,8 @@ func New(
 	for _, c := range conversations {
 		server.rooms.m[c.ID] = newRoom(c.ID)
 	}
+
+	registerEndpoints(server)
 
 	return server
 }
@@ -229,89 +240,70 @@ func (s *Server) receiveLoop(conn *websocket.Conn, c *client) {
 			conn.UnderlyingConn().RemoteAddr().String(),
 		)
 
-		if err != nil && shouldLimit != nil && wrapper.Command.Ressource != "livecoding" {
-			level.Info(s.logger).Log(
-				"Event", "RateLimit",
-				"RemoteAddr", conn.RemoteAddr(),
-				"commandRessource", wrapper.Command.Ressource)
-			c.Send <- makeErrorMessage(shouldLimit, -1)
+		isFound := false
+		for _, endpoint := range s.endpoints {
+			if endpoint.command == wrapper.Command {
+				isFound = true
+				if err != nil && shouldLimit != nil && endpoint.isLimited {
+					c.Send <- makeErrorMessage(shouldLimit, -1, wrapper.Command.Ressource)
+					break
+				}
+
+				ctx := NewRequestContext(wrapper.Command, wrapper.ID, wrapper.Source)
+				err = endpoint.handler(ctx, c.id, wrapper)
+				if err != nil {
+					c.Send <- makeErrorMessage(core.UnwrapDatabaseError(err), wrapper.ID, wrapper.Command.Ressource)
+				}
+
+				break
+			}
 		}
 
-		ctx := NewRequestContext(wrapper.Command, wrapper.ID, wrapper.Source)
-
-		switch wrapper.Command.Ressource {
-		case "message":
-			if wrapper.Command.Method == PostCommandMethod {
-				_, err = s.Messaging.SendMessage(wrapper.Source, c.id, msg, s, ctx)
-				if err != nil {
-					c.Send <- makeErrorMessage(core.UnwrapDatabaseError(err), wrapper.ID)
-				}
-			} else if wrapper.Command.Method == PatchCommandMethod {
-				_, err := s.Messaging.EditMessage(c.id, wrapper.Source, msg, s, ctx)
-				if err != nil {
-					c.Send <- makeErrorMessage(core.UnwrapDatabaseError(err), wrapper.ID)
-				}
-			} else {
-				c.Send <- makeErrorMessage(core.ErrUnsupportedMethod, wrapper.ID)
-			}
-		case "message/read":
-			if wrapper.Command.Method != NotifyCommandMethod {
-				c.Send <- makeErrorMessage(core.ErrUnsupportedMethod, wrapper.ID)
-				break
-			}
-
-			err = s.Messaging.ReadMessages(c.id, msg)
-			if err != nil {
-				c.Send <- makeErrorMessage(core.UnwrapDatabaseError(err), wrapper.ID)
-			}
-		case "livesession/code/start":
-			if wrapper.Command.Method != NotifyCommandMethod {
-				c.Send <- makeErrorMessage(core.ErrUnsupportedMethod, wrapper.ID)
-				break
-			}
-
-			_, err := s.Messaging.ToggleLiveSession(c.id, wrapper.Source, true, msg, s, ctx)
-			if err != nil {
-				c.Send <- makeErrorMessage(core.UnwrapDatabaseError(err), wrapper.ID)
-			}
-		case "livesession/code/stop":
-			if wrapper.Command.Method != NotifyCommandMethod {
-				c.Send <- makeErrorMessage(core.ErrUnsupportedMethod, wrapper.ID)
-				break
-			}
-
-			_, err := s.Messaging.ToggleLiveSession(c.id, wrapper.Source, false, msg, s, ctx)
-			if err != nil {
-				c.Send <- makeErrorMessage(core.UnwrapDatabaseError(err), wrapper.ID)
-			}
-		case "livecoding":
-			if wrapper.Command.Method != PatchCommandMethod {
-				c.Send <- makeErrorMessage(core.ErrUnsupportedMethod, wrapper.ID)
-				break
-			}
-
-			_, err := s.Messaging.LiveEditMessage(c.id, wrapper.Source, msg, s, ctx)
-			if err != nil {
-				c.Send <- makeErrorMessage(core.UnwrapDatabaseError(err), wrapper.ID)
-			}
-		case "typing":
-			if wrapper.Command.Method != NotifyCommandMethod {
-				c.Send <- makeErrorMessage(core.ErrUnsupportedMethod, wrapper.ID)
-				break
-			}
-
-			err := s.Messaging.BroadcastUserIsTyping(c.id, wrapper.Source, s, ctx)
-			if err != nil {
-				c.Send <- makeErrorMessage(core.UnwrapDatabaseError(err), wrapper.ID)
-			}
-		default:
-			c.Send <- makeErrorMessage(core.ErrUnsupportedMethod, wrapper.ID)
+		if isFound == false {
+			c.Send <- makeErrorMessage(core.ErrUnsupportedMethod, wrapper.ID, wrapper.Command.Ressource)
 		}
 	}
 }
 
-type endpoint struct {
-	command   RESTCommand
-	isLimited bool
-	action    func(ctx context.Context, clientID int, frame messageFrame)
+func (s *Server) addEndpoint(command RESTCommand, isLimited bool, handler func(ctx context.Context, clientID int, frame messageFrame) error) {
+	s.endpoints = append(s.endpoints, endpoint{
+		command:   command,
+		isLimited: isLimited,
+		handler:   handler,
+	})
+}
+
+func registerEndpoints(server *Server) {
+	server.addEndpoint(RESTCommand{"typing", NotifyCommandMethod}, true, func(ctx context.Context, clientID int, frame messageFrame) error {
+		return server.Messaging.BroadcastUserIsTyping(clientID, frame.Source, server, ctx)
+	})
+
+	server.addEndpoint(RESTCommand{"livecoding", PatchCommandMethod}, true, func(ctx context.Context, clientID int, frame messageFrame) error {
+		_, err := server.Messaging.LiveEditMessage(clientID, frame.Source, *frame.Payload.(*json.RawMessage), server, ctx)
+		return err
+	})
+
+	server.addEndpoint(RESTCommand{"livesession/code/stop", NotifyCommandMethod}, true, func(ctx context.Context, clientID int, frame messageFrame) error {
+		_, err := server.Messaging.ToggleLiveSession(clientID, frame.Source, false, *frame.Payload.(*json.RawMessage), server, ctx)
+		return err
+	})
+
+	server.addEndpoint(RESTCommand{"livesession/code/start", NotifyCommandMethod}, true, func(ctx context.Context, clientID int, frame messageFrame) error {
+		_, err := server.Messaging.ToggleLiveSession(clientID, frame.Source, true, *frame.Payload.(*json.RawMessage), server, ctx)
+		return err
+	})
+
+	server.addEndpoint(RESTCommand{"message", PatchCommandMethod}, true, func(ctx context.Context, clientID int, frame messageFrame) error {
+		_, err := server.Messaging.EditMessage(clientID, frame.Source, *frame.Payload.(*json.RawMessage), server, ctx)
+		return err
+	})
+
+	server.addEndpoint(RESTCommand{"message", PostCommandMethod}, true, func(ctx context.Context, clientID int, frame messageFrame) error {
+		_, err := server.Messaging.SendMessage(frame.Source, clientID, *frame.Payload.(*json.RawMessage), server, ctx)
+		return err
+	})
+
+	server.addEndpoint(RESTCommand{"message/read", NotifyCommandMethod}, true, func(ctx context.Context, clientID int, frame messageFrame) error {
+		return server.Messaging.ReadMessages(clientID, *frame.Payload.(*json.RawMessage))
+	})
 }

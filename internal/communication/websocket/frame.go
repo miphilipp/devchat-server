@@ -45,9 +45,9 @@ func newFrame(source, id int, command RESTCommand, payload interface{}) messageF
 	}
 }
 
-func makeErrorMessage(err error, id int) messageFrame {
+func makeErrorMessage(err error, id int, ressource string) messageFrame {
 	command := RESTCommand{
-		Ressource: "",
+		Ressource: ressource,
 		Method:    ErrorCommandMethod,
 	}
 
