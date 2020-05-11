@@ -63,7 +63,7 @@ func main() {
 		cfg.Server.GracefulTimeout = time.Second * 10
 	}
 
-	level.Info(logger).Log("Addr", cfg.Server.Addr)
+	level.Info(logger).Log("Addr", cfg.Server.LocalAddr)
 
 	useSSL := (cfg.Server.CertFile != "" && cfg.Server.KeyFile != "")
 
@@ -137,7 +137,7 @@ func main() {
 
 	app := server.New(
 		server.ServerConfig{
-			Addr:                     cfg.Server.Addr,
+			Addr:                     cfg.Server.LocalAddr,
 			IndexFileName:            cfg.Server.IndexFileName,
 			AssetsFolder:             cfg.Server.AssetsFolder,
 			AllowedRequestsPerMinute: cfg.Server.AllowedRequestsPerMinute,

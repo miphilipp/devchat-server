@@ -9,7 +9,7 @@ import (
 
 type config struct {
 	Server struct {
-		Addr                     string        `yaml:"addr"`
+		LocalAddr                string        `yaml:"localAddr"`
 		RootURL                  string        `yaml:"rootURL"`
 		GracefulTimeout          time.Duration `yaml:"graceFulShutdownTimeout"`
 		IndexFileName            string        `yaml:"indexFileName"`
