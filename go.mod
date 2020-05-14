@@ -16,5 +16,5 @@ require (
 	github.com/sergi/go-diff v1.1.0
 	github.com/throttled/throttled v2.2.4+incompatible
 	golang.org/x/text v0.3.2
-	gopkg.in/yaml.v2 v2.2.8
+	gopkg.in/yaml.v2 v2.3.0
 )
