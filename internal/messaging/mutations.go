@@ -200,10 +200,6 @@ func (s *service) AddFileToMessage(
 		return core.ErrInvalidMessageType
 	}
 
-	if len(fileName) > 100 {
-		return core.NewInvalidValueError("filename is too long.")
-	}
-
 	mediaObjID, err := s.messageRepo.CreateMediaObject(messageFromDB.ID, fileName, fileType)
 	if err != nil {
 		return err
