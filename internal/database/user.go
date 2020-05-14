@@ -1,7 +1,6 @@
 package database
 
 import (
-	//"fmt"
 	"errors"
 	"strings"
 	"time"
@@ -15,7 +14,7 @@ type userRepository struct {
 	db *pg.DB
 }
 
-// AuthenticateUser authenticates a user and returns its id if the authentication
+// CompareCredentials authenticates a user and returns its id if the authentication
 // was successfull
 func (r *userRepository) CompareCredentials(userID int, password string) (int, error) {
 	var id int
@@ -59,7 +58,7 @@ func (r *userRepository) DeleteUser(userid int) error {
 	return core.NewDataBaseError(err)
 }
 
-// DeleteUser sets the deleted flag to true and clears all sensetive user data.
+// SoftDeleteUser sets the deleted flag to true and clears all sensetive user data.
 func (r *userRepository) SoftDeleteUser(userID int) error {
 	_, err := callStoredProcedure(r.db, "deleteAccount", userID)
 	return core.NewDataBaseError(err)
