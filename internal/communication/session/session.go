@@ -2,7 +2,6 @@ package session
 
 import (
 	"time"
-	//"fmt"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	core "github.com/miphilipp/devchat-server/internal"
