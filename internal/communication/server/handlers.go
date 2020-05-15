@@ -36,11 +36,17 @@ var apiErrorToStatusCodeMap = map[int]int{
 // SetupRestHandlers registers all the  REST routes
 func (s *Webserver) SetupRestHandlers() {
 	s.router.HandleFunc("/user", func(writer http.ResponseWriter, request *http.Request) {
-		s.registerUser(writer, request)
+		err := s.registerUser(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodPost)
 
 	s.router.HandleFunc("/login", func(writer http.ResponseWriter, request *http.Request) {
-		s.login(writer, request)
+		err := s.login(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodPost)
 
 	s.router.HandleFunc("/logout", func(writer http.ResponseWriter, request *http.Request) {
@@ -48,15 +54,24 @@ func (s *Webserver) SetupRestHandlers() {
 	}).Methods(http.MethodGet)
 
 	s.router.HandleFunc("/user/confirm", func(writer http.ResponseWriter, request *http.Request) {
-		s.confirmAccount(writer, request)
+		err := s.confirmAccount(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodPatch)
 
 	s.router.HandleFunc("/sendpasswordreset", func(writer http.ResponseWriter, request *http.Request) {
-		s.sendPasswordReset(writer, request)
+		err := s.sendPasswordReset(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodPost)
 
 	s.router.HandleFunc("/passwordreset", func(writer http.ResponseWriter, request *http.Request) {
-		s.resetPassword(writer, request)
+		err := s.resetPassword(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodPost)
 
 	api := s.router.PathPrefix("/api/v1").Subrouter()
@@ -64,114 +79,189 @@ func (s *Webserver) SetupRestHandlers() {
 	media := s.router.PathPrefix("/media").Subrouter()
 	media.Use(s.generateAuthenticateSession())
 	media.HandleFunc("/user/{userid:[0-9]+}/avatar", func(writer http.ResponseWriter, request *http.Request) {
-		s.serveUserAvatar(writer, request)
+		err := s.serveUserAvatar(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodGet)
 
 	media.HandleFunc("/conversation/{conversationID:[0-9]+}/{fileName}",
 		func(writer http.ResponseWriter, request *http.Request) {
-			s.serveMediaMessageRessource(writer, request)
+			err := s.serveMediaMessageRessource(writer, request)
+			if err != nil {
+				sendAPIError(err, writer)
+			}
 		}).Methods(http.MethodGet)
 
 	api.HandleFunc("/conversation", func(writer http.ResponseWriter, request *http.Request) {
-		s.getConversation(writer, request)
+		err := s.getConversation(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodGet)
 
 	api.HandleFunc("/conversation", func(writer http.ResponseWriter, request *http.Request) {
-		s.postConversation(writer, request)
+		err := s.postConversation(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodPost)
 
 	api.HandleFunc("/conversation/{id:[0-9]+}", func(writer http.ResponseWriter, request *http.Request) {
-		s.deleteConversation(writer, request)
+		err := s.deleteConversation(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodDelete)
 
 	api.HandleFunc("/conversation/{id:[0-9]+}", func(writer http.ResponseWriter, request *http.Request) {
-		s.patchConversation(writer, request)
+		err := s.patchConversation(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodPatch)
 
 	api.HandleFunc("/conversation/{id:[0-9]+}/users", func(writer http.ResponseWriter, request *http.Request) {
-		s.getMembersOfConversation(writer, request)
+		err := s.getMembersOfConversation(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodGet)
 
 	api.HandleFunc("/conversation/{id:[0-9]+}/message/{messageID:[0-9]+}/upload",
 		func(writer http.ResponseWriter, request *http.Request) {
-			s.uploadMedia(writer, request)
+			err := s.uploadMedia(writer, request)
+			if err != nil {
+				sendAPIError(err, writer)
+			}
 		}).Methods(http.MethodPatch)
 
 	api.HandleFunc("/conversation/{conversationID:[0-9]+}/users/{userID:[0-9]+}",
 		func(writer http.ResponseWriter, request *http.Request) {
-			s.deleteUserFromConversation(writer, request)
+			err := s.deleteUserFromConversation(writer, request)
+			if err != nil {
+				sendAPIError(err, writer)
+			}
 		}).Methods(http.MethodDelete)
 
 	api.HandleFunc("/conversation/{conversationID:[0-9]+}/users/{userID}",
 		func(writer http.ResponseWriter, request *http.Request) {
-			s.patchAdminStatus(writer, request)
+			err := s.patchAdminStatus(writer, request)
+			if err != nil {
+				sendAPIError(err, writer)
+			}
 		}).Methods(http.MethodPatch)
 
 	api.HandleFunc("/invitation", func(writer http.ResponseWriter, request *http.Request) {
-		s.getInvitations(writer, request)
+		err := s.getInvitations(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodGet)
 
 	api.HandleFunc("/invitation", func(writer http.ResponseWriter, request *http.Request) {
-		s.postInvitation(writer, request)
+		err := s.postInvitation(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodPost)
 
 	api.HandleFunc("/invitation", func(writer http.ResponseWriter, request *http.Request) {
-		s.patchInvitation(writer, request)
+		err := s.patchInvitation(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodPatch)
 
 	api.HandleFunc("/invitation", func(writer http.ResponseWriter, request *http.Request) {
-		s.deleteInvitation(writer, request)
+		err := s.deleteInvitation(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodDelete)
 
 	api.HandleFunc("/user/avatar", func(writer http.ResponseWriter, request *http.Request) {
-		s.postNewAvatar(writer, request)
+		err := s.postNewAvatar(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodPost)
 
 	api.HandleFunc("/user/avatar", func(writer http.ResponseWriter, request *http.Request) {
-		s.deleteAvatar(writer, request)
+		err := s.deleteAvatar(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodDelete)
 
 	api.HandleFunc("/user", func(writer http.ResponseWriter, request *http.Request) {
-		s.getProfile(writer, request)
+		err := s.getProfile(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodGet)
 
 	api.HandleFunc("/user", func(writer http.ResponseWriter, request *http.Request) {
-		s.deleteUserAccount(writer, request)
+		err := s.deleteUserAccount(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodDelete)
 
 	api.HandleFunc("/user/password", func(writer http.ResponseWriter, request *http.Request) {
-		s.patchPassword(writer, request)
+		err := s.patchPassword(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodPatch)
 
 	api.HandleFunc("/users", func(writer http.ResponseWriter, request *http.Request) {
-		s.getUsers(writer, request)
+		err := s.getUsers(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Queries("prefix", "{prefix}").Methods(http.MethodGet)
 
 	api.HandleFunc("/conversation/{id:[0-9]+}/messages", func(writer http.ResponseWriter, request *http.Request) {
-		s.getMessages(writer, request)
+		err := s.getMessages(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodGet)
 
-	api.HandleFunc("/conversation/{id:[0-9]+}/messages/{messageID}/code",
+	api.HandleFunc("/conversation/{id:[0-9]+}/messages/{messageID:[0-9]+}/code",
 		func(writer http.ResponseWriter, request *http.Request) {
-			s.getCodeOfMessage(writer, request)
+			err := s.getCodeOfMessage(writer, request)
+			if err != nil {
+				sendAPIError(err, writer)
+			}
 		}).Methods(http.MethodGet)
 
-	api.HandleFunc("/conversation/{id:[0-9]+}/messages/{messageID}",
+	api.HandleFunc("/conversation/{id:[0-9]+}/messages/{messageID:[0-9]+}",
 		func(writer http.ResponseWriter, request *http.Request) {
-			s.getMessage(writer, request)
+			err := s.getMessage(writer, request)
+			if err != nil {
+				sendAPIError(err, writer)
+			}
 		}).Methods(http.MethodGet)
 
 	api.HandleFunc("/programmingLanguages", func(writer http.ResponseWriter, request *http.Request) {
-		s.getProgrammingLanguages(writer, request)
+		err := s.getProgrammingLanguages(writer, request)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	}).Methods(http.MethodGet)
 
 	api.HandleFunc("/websocket", func(writer http.ResponseWriter, request *http.Request) {
 		userContext := request.Context().Value("UserID").(int)
-		s.socket.StartWebsocket(writer, request, userContext)
+		err := s.socket.StartWebsocket(writer, request, userContext)
+		if err != nil {
+			sendAPIError(err, writer)
+		}
 	})
 }
 
-func checkForAPIError(err error, writer http.ResponseWriter) bool {
+func sendAPIError(err error, writer http.ResponseWriter) {
 	err = core.UnwrapDatabaseError(err)
 	if e, ok := err.(core.ApiError); ok {
 		if errorCode, ok := apiErrorToStatusCodeMap[e.Code]; ok {
@@ -179,9 +269,10 @@ func checkForAPIError(err error, writer http.ResponseWriter) bool {
 		} else {
 			writeJSONError(writer, e, http.StatusInternalServerError)
 		}
-		return true
+		return
 	}
-	return false
+
+	writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
 }
 
 func writeJSONError(writer http.ResponseWriter, err error, statusCode int) {

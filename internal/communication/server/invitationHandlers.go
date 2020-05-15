@@ -1,8 +1,6 @@
 package server
 
 import (
-	//"errors"
-
 	"encoding/json"
 	"net/http"
 
@@ -11,24 +9,19 @@ import (
 	"github.com/miphilipp/devchat-server/internal/communication/websocket"
 )
 
-func (s *Webserver) postInvitation(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) postInvitation(writer http.ResponseWriter, request *http.Request) error {
 	userID := request.Context().Value("UserID").(int)
 
 	var invitation core.Invitation
 	err := json.NewDecoder(request.Body).Decode(&invitation)
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "postInvitation", "err", err)
-		apiErrorJSON := core.NewJSONFormatError(err.Error())
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError(err.Error())
 	}
 
 	err = s.conversationService.InviteUser(userID, invitation.Recipient, invitation.ConversationID)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	command := websocket.RESTCommand{
@@ -58,25 +51,21 @@ func (s *Webserver) postInvitation(writer http.ResponseWriter, request *http.Req
 	}
 
 	writer.WriteHeader(http.StatusOK)
+	return nil
 }
 
-func (s *Webserver) deleteInvitation(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) deleteInvitation(writer http.ResponseWriter, request *http.Request) error {
 	userID := request.Context().Value("UserID").(int)
 	var invitation core.Invitation
 	err := json.NewDecoder(request.Body).Decode(&invitation)
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "deleteInvitation", "err", err)
-		apiErrorJSON := core.NewJSONFormatError(err.Error())
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError(err.Error())
 	}
 
 	err = s.conversationService.RevokeInvitation(userID, invitation.Recipient, invitation.ConversationID)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	ctx := websocket.NewRequestContext(websocket.RESTCommand{
@@ -86,9 +75,10 @@ func (s *Webserver) deleteInvitation(writer http.ResponseWriter, request *http.R
 	s.socket.BroadcastToRoom(invitation.ConversationID, invitation, ctx)
 
 	writer.WriteHeader(http.StatusOK)
+	return nil
 }
 
-func (s *Webserver) patchInvitation(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) patchInvitation(writer http.ResponseWriter, request *http.Request) error {
 	userID := request.Context().Value("UserID").(int)
 	requestBody := struct {
 		Action         string `json:"action"`
@@ -98,25 +88,18 @@ func (s *Webserver) patchInvitation(writer http.ResponseWriter, request *http.Re
 	err := json.NewDecoder(request.Body).Decode(&requestBody)
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "patchInvitation", "err", err)
-		apiErrorJSON := core.NewJSONFormatError(err.Error())
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError(err.Error())
 	}
 
 	if requestBody.Action == "-" {
-		apiErrorJSON := core.NewJSONFormatError("action missing")
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError("action missing")
 	}
 
 	conversationID := requestBody.ConversationID
 	if requestBody.Action == "denie" {
 		err = s.conversationService.DenieInvitation(userID, conversationID)
 		if err != nil {
-			if !checkForAPIError(err, writer) {
-				writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-			}
-			return
+			return err
 		}
 
 		reply := struct {
@@ -133,10 +116,7 @@ func (s *Webserver) patchInvitation(writer http.ResponseWriter, request *http.Re
 	} else if requestBody.Action == "accept" {
 		colorIndex, err := s.conversationService.JoinConversation(userID, conversationID)
 		if err != nil {
-			if !checkForAPIError(err, writer) {
-				writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-			}
-			return
+			return err
 		}
 
 		reply := struct {
@@ -154,24 +134,22 @@ func (s *Webserver) patchInvitation(writer http.ResponseWriter, request *http.Re
 		s.socket.JoinRoom(conversationID, userID)
 	} else {
 		level.Warn(s.logger).Log("Handler", "patchInvitation", "err", "Invalid Action")
-		http.Error(writer, "Invalid Action", http.StatusBadRequest)
-		return
+		return core.ErrUnsupportedMethod
 	}
 
 	writer.WriteHeader(http.StatusOK)
+	return nil
 }
 
-func (s *Webserver) getInvitations(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) getInvitations(writer http.ResponseWriter, request *http.Request) error {
 	userID := request.Context().Value("UserID").(int)
 	invitations, err := s.conversationService.ListInvitations(userID)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(invitations)
+	return nil
 }

@@ -19,14 +19,12 @@ type userSearchResponse struct {
 	Name string `json:"name"`
 }
 
-func (s *Webserver) serveUserAvatar(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) serveUserAvatar(writer http.ResponseWriter, request *http.Request) error {
 	vars := mux.Vars(request)
 	userID, err := strconv.Atoi(vars["userid"])
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "serveUserAvatar", "err", err)
-		apiErrorPath := core.NewPathFormatError(err.Error())
-		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-		return
+		return core.NewPathFormatError(err.Error())
 	}
 
 	nodefaultStr := request.FormValue("nodefault")
@@ -37,26 +35,23 @@ func (s *Webserver) serveUserAvatar(writer http.ResponseWriter, request *http.Re
 
 	avatarPath, modTime, err := s.userService.GetAvatar(userID, s.config.AvatarFolder, nodefault)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	modTimeBin, err := modTime.MarshalBinary()
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "serveUserAvatar", "err", err)
-		writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		return
+		return core.ErrUnknownError
 	}
 
 	hash := fmt.Sprintf("\"%x\"", md5.Sum(modTimeBin))
 	writer.Header().Set("Cache-Control", "no-cache")
 	writer.Header().Set("ETag", hash)
 	http.ServeFile(writer, request, avatarPath)
+	return nil
 }
 
-func (s *Webserver) registerUser(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) registerUser(writer http.ResponseWriter, request *http.Request) error {
 
 	requestBody := struct {
 		Username string `json:"username"`
@@ -67,27 +62,19 @@ func (s *Webserver) registerUser(writer http.ResponseWriter, request *http.Reque
 	err := json.NewDecoder(request.Body).Decode(&requestBody)
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "registerUser", "err", err)
-		apiErrorJSON := core.NewJSONFormatError(err.Error())
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError(err.Error())
 	}
 
 	if requestBody.Username == "-" {
-		apiErrorJSON := core.NewJSONFormatError("username potentially missing")
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError("username potentially missing")
 	}
 
 	if requestBody.Password == "-" {
-		apiErrorJSON := core.NewJSONFormatError("password potentially missing")
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError("password potentially missing")
 	}
 
 	if requestBody.Email == "-" {
-		apiErrorJSON := core.NewJSONFormatError("email potentially missing")
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError("email potentially missing")
 	}
 
 	user := core.User{
@@ -96,16 +83,14 @@ func (s *Webserver) registerUser(writer http.ResponseWriter, request *http.Reque
 	}
 	err = s.userService.CreateAccount(user, requestBody.Password, s.config.RootURL)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	writer.WriteHeader(http.StatusOK)
+	return nil
 }
 
-func (s *Webserver) confirmAccount(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) confirmAccount(writer http.ResponseWriter, request *http.Request) error {
 	requestBody := struct {
 		Token string `json:"token"`
 	}{"-"}
@@ -113,23 +98,16 @@ func (s *Webserver) confirmAccount(writer http.ResponseWriter, request *http.Req
 	err := json.NewDecoder(request.Body).Decode(&requestBody)
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "confirmAccount", "err", err)
-		apiErrorJSON := core.NewJSONFormatError(err.Error())
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError(err.Error())
 	}
 
 	if requestBody.Token == "-" {
-		apiErrorJSON := core.NewJSONFormatError("token potentially missing")
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError("token potentially missing")
 	}
 
 	username, err := s.userService.ConfirmAccount(requestBody.Token)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	reply := struct {
@@ -139,31 +117,27 @@ func (s *Webserver) confirmAccount(writer http.ResponseWriter, request *http.Req
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(reply)
+	return nil
 }
 
-func (s *Webserver) getProfile(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) getProfile(writer http.ResponseWriter, request *http.Request) error {
 	userID := request.Context().Value("UserID").(int)
 	self, err := s.userService.GetUserForID(userID)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(self)
+	return nil
 }
 
-func (s *Webserver) getUsers(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) getUsers(writer http.ResponseWriter, request *http.Request) error {
 	prefix := request.FormValue("prefix")
 	users, err := s.userService.SearchUsers(prefix)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	response := make([]userSearchResponse, 0, len(users))
@@ -176,9 +150,10 @@ func (s *Webserver) getUsers(writer http.ResponseWriter, request *http.Request) 
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(response)
+	return nil
 }
 
-func (s *Webserver) sendPasswordReset(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) sendPasswordReset(writer http.ResponseWriter, request *http.Request) error {
 	language := request.Context().Value("Language").(language.Tag)
 	requestBody := struct {
 		Email string `json:"email"`
@@ -187,29 +162,23 @@ func (s *Webserver) sendPasswordReset(writer http.ResponseWriter, request *http.
 	err := json.NewDecoder(request.Body).Decode(&requestBody)
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "sendPasswordRecovery", "err", err)
-		apiErrorJSON := core.NewJSONFormatError(err.Error())
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError(err.Error())
 	}
 
 	if requestBody.Email == "-" {
-		apiErrorJSON := core.NewJSONFormatError("email potentially missing")
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError("email potentially missing")
 	}
 
 	err = s.userService.SendPasswordResetMail(requestBody.Email, s.config.RootURL, language.String())
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	writer.WriteHeader(http.StatusOK)
+	return nil
 }
 
-func (s *Webserver) patchPassword(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) patchPassword(writer http.ResponseWriter, request *http.Request) error {
 	userCtx := request.Context().Value("UserID").(int)
 	userCtxName := request.Context().Value("username").(string)
 
@@ -220,36 +189,28 @@ func (s *Webserver) patchPassword(writer http.ResponseWriter, request *http.Requ
 	err := json.NewDecoder(request.Body).Decode(&requestBody)
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "patchPassword", "err", err)
-		apiErrorJSON := core.NewJSONFormatError(err.Error())
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError(err.Error())
 	}
 
 	if requestBody.OldPassword == "-" {
-		apiErrorJSON := core.NewJSONFormatError("oldPassword potentially missing")
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError("oldPassword potentially missing")
 	}
 
 	if requestBody.NewPassword == "-" {
-		apiErrorJSON := core.NewJSONFormatError("newPassword potentially missing")
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError("newPassword potentially missing")
 	}
 
 	err = s.userService.ChangePassword(userCtx, requestBody.OldPassword, requestBody.NewPassword)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	s.session.InvlidateAllTokens(userCtxName)
 	writer.WriteHeader(http.StatusOK)
+	return nil
 }
 
-func (s *Webserver) resetPassword(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) resetPassword(writer http.ResponseWriter, request *http.Request) error {
 	requestBody := struct {
 		RecoveryUUID string `json:"recoveryUUID"`
 		Password     string `json:"password"`
@@ -257,29 +218,20 @@ func (s *Webserver) resetPassword(writer http.ResponseWriter, request *http.Requ
 	err := json.NewDecoder(request.Body).Decode(&requestBody)
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "recoverPassword", "err", err)
-		apiErrorJSON := core.NewJSONFormatError(err.Error())
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError(err.Error())
 	}
 
 	if requestBody.Password == "-" {
-		apiErrorJSON := core.NewJSONFormatError("password potentially missing")
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError("password potentially missing")
 	}
 
 	if requestBody.RecoveryUUID == "-" {
-		apiErrorJSON := core.NewJSONFormatError("recoveryUUID potentially missing")
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError("recoveryUUID potentially missing")
 	}
 
 	username, err := s.userService.ResetPassword(requestBody.RecoveryUUID, requestBody.Password)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	s.session.InvlidateAllTokens(username)
@@ -291,18 +243,16 @@ func (s *Webserver) resetPassword(writer http.ResponseWriter, request *http.Requ
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(reply)
+	return err
 }
 
-func (s *Webserver) deleteUserAccount(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) deleteUserAccount(writer http.ResponseWriter, request *http.Request) error {
 	userID := request.Context().Value("UserID").(int)
 	userCtxName := request.Context().Value("username").(string)
 
 	err := s.userService.DeleteAccount(userID)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	s.userService.DeleteAvatar(s.config.AvatarFolder, userID)
@@ -310,22 +260,21 @@ func (s *Webserver) deleteUserAccount(writer http.ResponseWriter, request *http.
 	s.socket.DisconnectClient(userID)
 	s.session.InvlidateAllTokens(userCtxName)
 	writer.WriteHeader(http.StatusOK)
+	return nil
 }
 
-func (s *Webserver) postNewAvatar(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) postNewAvatar(writer http.ResponseWriter, request *http.Request) error {
 	userID := request.Context().Value("UserID").(int)
 	err := request.ParseMultipartForm(2 << 20)
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "postNewAvatar", "err", err)
-		http.Error(writer, err.Error(), http.StatusBadRequest)
-		return
+		return err
 	}
 
 	file, header, err := request.FormFile("avatar")
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "postNewAvatar", "err", err)
-		http.Error(writer, err.Error(), http.StatusBadRequest)
-		return
+		return err
 	}
 	defer file.Close()
 
@@ -334,8 +283,7 @@ func (s *Webserver) postNewAvatar(writer http.ResponseWriter, request *http.Requ
 	sniff, err := buf.Peek(int(peakAmount))
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "postNewAvatar", "err", err)
-		writeJSONError(writer, core.ErrUnknownError, http.StatusBadRequest)
-		return
+		return core.ErrUnknownError
 	}
 
 	contentType := http.DetectContentType(sniff)
@@ -344,23 +292,19 @@ func (s *Webserver) postNewAvatar(writer http.ResponseWriter, request *http.Requ
 
 	err = s.userService.SaveAvatar(userID, s.config.AvatarFolder, contentType, buffer)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	writer.WriteHeader(http.StatusOK)
+	return nil
 }
 
-func (s *Webserver) deleteAvatar(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) deleteAvatar(writer http.ResponseWriter, request *http.Request) error {
 	userID := request.Context().Value("UserID").(int)
 	err := s.userService.DeleteAvatar(s.config.AvatarFolder, userID)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 	writer.WriteHeader(http.StatusOK)
+	return nil
 }

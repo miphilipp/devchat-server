@@ -17,7 +17,7 @@ const accessTokenName = "access_token"
 func (s *Webserver) logout(writer http.ResponseWriter, request *http.Request) {
 	tokenString, err := getTokenFromRequest(request)
 	if err != nil {
-		checkForAPIError(core.ErrAuthFailed, writer)
+		sendAPIError(core.ErrAuthFailed, writer)
 		return
 	}
 
@@ -49,7 +49,7 @@ func (s *Webserver) generateAuthenticateSession() func(next http.Handler) http.H
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			tokenString, err := getTokenFromRequest(request)
 			if err != nil {
-				checkForAPIError(core.ErrAuthFailed, writer)
+				sendAPIError(core.ErrAuthFailed, writer)
 				return
 			}
 
@@ -57,9 +57,7 @@ func (s *Webserver) generateAuthenticateSession() func(next http.Handler) http.H
 			if err == nil {
 				user, err := s.userService.GetUserForName(name)
 				if err != nil {
-					if !checkForAPIError(err, writer) {
-						writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-					}
+					sendAPIError(err, writer)
 					return
 				}
 				ctx := context.WithValue(request.Context(), "UserID", user.ID)
@@ -67,18 +65,17 @@ func (s *Webserver) generateAuthenticateSession() func(next http.Handler) http.H
 				copiedRequest := request.WithContext(ctx)
 				next.ServeHTTP(writer, copiedRequest)
 			} else {
-				checkForAPIError(core.ErrAuthFailed, writer)
+				sendAPIError(core.ErrAuthFailed, writer)
 			}
 		})
 	}
 }
 
-func (s *Webserver) login(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) login(writer http.ResponseWriter, request *http.Request) error {
 	if request.Header.Get("Content-Type") != "" {
 		value, _ := header.ParseValueAndParams(request.Header, "Content-Type")
 		if value != "application/json" {
-			writeJSONError(writer, core.ErrRequireJSON, http.StatusUnsupportedMediaType)
-			return
+			return core.ErrRequireJSON
 		}
 	}
 
@@ -88,25 +85,20 @@ func (s *Webserver) login(writer http.ResponseWriter, request *http.Request) {
 	}{}
 	err := json.NewDecoder(request.Body).Decode(&loginData)
 	if err != nil {
-		apiErrorJSON := core.NewJSONFormatError(err.Error())
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError(err.Error())
 	}
 
 	res, err := s.userService.AuthenticateUser(loginData.Username, loginData.Password)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
+	// The credentials match
 	if res != -1 {
 		token, err := s.session.GetSessionToken(loginData.Username)
 		if err != nil {
 			level.Error(s.logger).Log("Handler", "login", "err", err)
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-			return
+			return core.ErrUnknownError
 		}
 
 		writer.Header().Set("Authorization", "Bearer "+token)
@@ -119,7 +111,9 @@ func (s *Webserver) login(writer http.ResponseWriter, request *http.Request) {
 		}
 		http.SetCookie(writer, &cookie)
 		writer.WriteHeader(http.StatusOK)
-	} else {
-		writeJSONError(writer, core.ErrAuthFailed, http.StatusUnauthorized)
+		return nil
 	}
+
+	// The credentials do not match
+	return core.ErrAuthFailed
 }

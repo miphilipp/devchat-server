@@ -1,12 +1,8 @@
 package server
 
 import (
-	//"errors"
-
-	"net/http"
-
-	//"fmt"
 	"encoding/json"
+	"net/http"
 	"strconv"
 
 	"github.com/go-kit/kit/log/level"
@@ -15,23 +11,18 @@ import (
 	"github.com/miphilipp/devchat-server/internal/communication/websocket"
 )
 
-func (s *Webserver) deleteConversation(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) deleteConversation(writer http.ResponseWriter, request *http.Request) error {
 	userID := request.Context().Value("UserID").(int)
 	vars := mux.Vars(request)
 	conversationID, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "deleteConversation", "err", err)
-		apiErrorPath := core.NewPathFormatError("Could not parse path component id")
-		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-		return
+		return core.NewPathFormatError("Could not parse path component id")
 	}
 
 	err = s.conversationService.DeleteConversation(userID, conversationID)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	ctx := websocket.NewRequestContext(websocket.RESTCommand{
@@ -42,9 +33,10 @@ func (s *Webserver) deleteConversation(writer http.ResponseWriter, request *http
 
 	s.socket.RemoveRoom(conversationID)
 	writer.WriteHeader(http.StatusOK)
+	return nil
 }
 
-func (s *Webserver) postConversation(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) postConversation(writer http.ResponseWriter, request *http.Request) error {
 	userID := request.Context().Value("UserID").(int)
 	requestBody := struct {
 		Title          string `json:"title"`
@@ -55,15 +47,11 @@ func (s *Webserver) postConversation(writer http.ResponseWriter, request *http.R
 	err := json.NewDecoder(request.Body).Decode(&requestBody)
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "addConversation", "err", err)
-		apiErrorJSON := core.NewJSONFormatError(err.Error())
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError(err.Error())
 	}
 
 	if requestBody.Title == "-" {
-		apiErrorJSON := core.NewJSONFormatError("title missing")
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError("title missing")
 	}
 
 	createdConversation, err := s.conversationService.CreateConversation(
@@ -73,10 +61,7 @@ func (s *Webserver) postConversation(writer http.ResponseWriter, request *http.R
 		requestBody.InitialMembers,
 	)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	for _, member := range requestBody.InitialMembers {
@@ -105,17 +90,16 @@ func (s *Webserver) postConversation(writer http.ResponseWriter, request *http.R
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(reply)
+	return nil
 }
 
-func (s *Webserver) patchConversation(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) patchConversation(writer http.ResponseWriter, request *http.Request) error {
 	userContext := request.Context().Value("UserID").(int)
 	vars := mux.Vars(request)
 	conversationID, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "patchConversation", "err", err)
-		apiErrorPath := core.NewPathFormatError("Could not parse path component conversationID")
-		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-		return
+		return core.NewPathFormatError("Could not parse path component conversationID")
 	}
 
 	patchData := struct {
@@ -126,9 +110,7 @@ func (s *Webserver) patchConversation(writer http.ResponseWriter, request *http.
 	err = json.NewDecoder(request.Body).Decode(&patchData)
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "patchConversation", "err", err)
-		apiErrorJSON := core.NewJSONFormatError(err.Error())
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError(err.Error())
 	}
 
 	patchedConversation, err := s.conversationService.EditConversation(userContext, core.Conversation{
@@ -137,10 +119,7 @@ func (s *Webserver) patchConversation(writer http.ResponseWriter, request *http.
 		Repourl: patchData.RepoURL,
 	})
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	reply := struct {
@@ -160,40 +139,35 @@ func (s *Webserver) patchConversation(writer http.ResponseWriter, request *http.
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(reply)
+	return nil
 }
 
-func (s *Webserver) getConversation(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) getConversation(writer http.ResponseWriter, request *http.Request) error {
 	userID := request.Context().Value("UserID").(int)
 	conversations, err := s.conversationService.ListConversationsForUser(userID)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(conversations)
+	return nil
 }
 
-func (s *Webserver) deleteUserFromConversation(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) deleteUserFromConversation(writer http.ResponseWriter, request *http.Request) error {
 	userContext := request.Context().Value("UserID").(int)
 	vars := mux.Vars(request)
 	conversationID, err := strconv.Atoi(vars["conversationID"])
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "deleteUserFromConversation", "err", err)
-		apiErrorPath := core.NewPathFormatError(err.Error())
-		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-		return
+		return core.NewPathFormatError(err.Error())
 	}
 
 	userID, err := strconv.Atoi(vars["userID"])
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "deleteUserFromConversation", "err", err)
-		apiErrorPath := core.NewPathFormatError(err.Error())
-		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-		return
+		return core.NewPathFormatError(err.Error())
 	}
 
 	if userContext == userID {
@@ -203,9 +177,7 @@ func (s *Webserver) deleteUserFromConversation(writer http.ResponseWriter, reque
 			a, err := strconv.Atoi(newAdminStr)
 			if err != nil {
 				level.Error(s.logger).Log("Handler", "deleteUserFromConversation", "err", err)
-				apiErrorPath := core.NewPathFormatError("Could not parse newadmin")
-				writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-				return
+				return core.NewPathFormatError("Could not parse newadmin")
 			}
 
 			newAdmin = a
@@ -217,37 +189,31 @@ func (s *Webserver) deleteUserFromConversation(writer http.ResponseWriter, reque
 	}
 
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	writer.WriteHeader(http.StatusOK)
+	return nil
 }
 
-func (s *Webserver) getMembersOfConversation(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) getMembersOfConversation(writer http.ResponseWriter, request *http.Request) error {
 	userID := request.Context().Value("UserID").(int)
 	vars := mux.Vars(request)
 	conversationID, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "getMembersOfConversation", "err", err)
-		apiErrorPath := core.NewPathFormatError(err.Error())
-		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-		return
+		return core.NewPathFormatError(err.Error())
 	}
 
 	users, err := s.conversationService.ListUsersOfConversation(userID, conversationID)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(users)
+	return nil
 }
 
 func (s *Webserver) deleteSelfFromConversation(userID, conversationID, newAdmin int) error {
@@ -294,23 +260,19 @@ func (s *Webserver) deleteOtherUserFromConversation(userCtx, userID, conversatio
 	return nil
 }
 
-func (s *Webserver) patchAdminStatus(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) patchAdminStatus(writer http.ResponseWriter, request *http.Request) error {
 	userContext := request.Context().Value("UserID").(int)
 	vars := mux.Vars(request)
 	conversationID, err := strconv.Atoi(vars["conversationID"])
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "patchAdminStatus", "err", err)
-		apiErrorPath := core.NewPathFormatError(err.Error())
-		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-		return
+		return core.NewPathFormatError(err.Error())
 	}
 
 	userID, err := strconv.Atoi(vars["userID"])
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "patchAdminStatus", "err", err)
-		apiErrorPath := core.NewPathFormatError(err.Error())
-		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-		return
+		return core.NewPathFormatError(err.Error())
 	}
 
 	requestBody := struct {
@@ -319,17 +281,12 @@ func (s *Webserver) patchAdminStatus(writer http.ResponseWriter, request *http.R
 	err = json.NewDecoder(request.Body).Decode(&requestBody)
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "patchAdminStatus", "err", err)
-		apiErrorJSON := core.NewJSONFormatError(err.Error())
-		writeJSONError(writer, apiErrorJSON, http.StatusBadRequest)
-		return
+		return core.NewJSONFormatError(err.Error())
 	}
 
 	err = s.conversationService.SetAdminStatus(userContext, userID, conversationID, requestBody.State)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	reply := struct {
@@ -344,4 +301,5 @@ func (s *Webserver) patchAdminStatus(writer http.ResponseWriter, request *http.R
 	s.socket.BroadcastToRoom(conversationID, reply, ctx)
 
 	writer.WriteHeader(http.StatusOK)
+	return nil
 }

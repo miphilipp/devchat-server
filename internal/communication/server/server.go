@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"time"
 
-	//"fmt"
-
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/gorilla/mux"

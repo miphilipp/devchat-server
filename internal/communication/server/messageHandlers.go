@@ -14,15 +14,13 @@ import (
 	"github.com/miphilipp/devchat-server/internal/communication/websocket"
 )
 
-func (s *Webserver) getMessages(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) getMessages(writer http.ResponseWriter, request *http.Request) error {
 	userID := request.Context().Value("UserID").(int)
 	vars := mux.Vars(request)
 	conversationID, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "getMessages", "err", err)
-		apiErrorPath := core.NewPathFormatError("Could not pares path component conversationID")
-		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-		return
+		return core.NewPathFormatError("Could not pares path component conversationID")
 	}
 
 	beforeInSequence := core.MaxInt
@@ -31,9 +29,7 @@ func (s *Webserver) getMessages(writer http.ResponseWriter, request *http.Reques
 		o, err := strconv.Atoi(beforeInSequenceStr)
 		if err != nil {
 			level.Error(s.logger).Log("Handler", "getMessages", "err", err)
-			apiErrorPath := core.NewPathFormatError("Could not parse before")
-			writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-			return
+			return core.NewPathFormatError("Could not parse before")
 		}
 
 		beforeInSequence = o
@@ -45,9 +41,7 @@ func (s *Webserver) getMessages(writer http.ResponseWriter, request *http.Reques
 		t, err := strconv.Atoi(messageTypeStr)
 		if err != nil {
 			level.Error(s.logger).Log("Handler", "getMessages", "err", err)
-			apiErrorPath := core.NewPathFormatError("Could not parse type")
-			writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-			return
+			return core.NewPathFormatError("Could not parse type")
 		}
 		messageType = core.MessageType(t)
 	}
@@ -58,51 +52,40 @@ func (s *Webserver) getMessages(writer http.ResponseWriter, request *http.Reques
 		l, err := strconv.Atoi(limitStr)
 		if err != nil {
 			level.Error(s.logger).Log("Handler", "getMessages", "err", err)
-			apiErrorPath := core.NewPathFormatError("Could not parse limit")
-			writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-			return
+			return core.NewPathFormatError("Could not parse limit")
 		}
 		limit = l
 	}
 
 	messages, err := s.messageService.ListAllMessages(userID, conversationID, beforeInSequence, limit, messageType)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(messages)
+	return nil
 }
 
-func (s *Webserver) getCodeOfMessage(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) getCodeOfMessage(writer http.ResponseWriter, request *http.Request) error {
 	userID := request.Context().Value("UserID").(int)
 	vars := mux.Vars(request)
 	conversationID, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "getMessages", "err", err)
-		apiErrorPath := core.NewPathFormatError("Could not pares path component conversationID")
-		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-		return
+		return core.NewPathFormatError("Could not pares path component conversationID")
 	}
 
 	messageID, err := strconv.Atoi(vars["messageID"])
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "getMessages", "err", err)
-		apiErrorPath := core.NewPathFormatError("Could not pares path component messageID")
-		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-		return
+		return core.NewPathFormatError("Could not pares path component messageID")
 	}
 
 	code, err := s.messageService.GetCodeOfMessage(userID, conversationID, messageID)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	reply := struct {
@@ -112,55 +95,48 @@ func (s *Webserver) getCodeOfMessage(writer http.ResponseWriter, request *http.R
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(reply)
+	return nil
 }
 
-func (s *Webserver) getProgrammingLanguages(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) getProgrammingLanguages(writer http.ResponseWriter, request *http.Request) error {
 	languages, err := s.messageService.ListProgrammingLanguages()
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(languages)
+	return nil
 }
 
-func (s *Webserver) getMessage(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) getMessage(writer http.ResponseWriter, request *http.Request) error {
 	userID := request.Context().Value("UserID").(int)
 	vars := mux.Vars(request)
 	conversationID, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "getMessage", "err", err)
-		apiErrorPath := core.NewPathFormatError("Could not pares path component conversationID")
-		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-		return
+		return core.NewPathFormatError("Could not pares path component conversationID")
 	}
 
 	messageID, err := strconv.Atoi(vars["messageID"])
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "getMessage", "err", err)
-		apiErrorPath := core.NewPathFormatError("Could not pares path component messageID")
-		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-		return
+		return core.NewPathFormatError("Could not pares path component messageID")
 	}
 
 	message, err := s.messageService.GetMessage(userID, conversationID, messageID)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(message)
+	return nil
 }
 
-func (s *Webserver) uploadMedia(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) uploadMedia(writer http.ResponseWriter, request *http.Request) error {
 
 	userID := request.Context().Value("UserID").(int)
 	vars := mux.Vars(request)
@@ -168,24 +144,19 @@ func (s *Webserver) uploadMedia(writer http.ResponseWriter, request *http.Reques
 	conversationID, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "uploadMedia", "err", err)
-		apiErrorPath := core.NewPathFormatError("Could not parse path component conversationID")
-		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-		return
+		return core.NewPathFormatError("Could not parse path component conversationID")
 	}
 
 	messageID, err := strconv.Atoi(vars["messageID"])
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "uploadMedia", "err", err)
-		apiErrorPath := core.NewPathFormatError("Could not parse path component messageID")
-		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-		return
+		return core.NewPathFormatError("Could not parse path component messageID")
 	}
 
 	err = request.ParseMultipartForm(2 << 20)
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "uploadMedia", "err", err)
-		writeJSONError(writer, core.ErrUnknownError, http.StatusBadRequest)
-		return
+		return core.ErrUnknownError
 	}
 
 	var mediaCreationErr error
@@ -229,18 +200,12 @@ func (s *Webserver) uploadMedia(writer http.ResponseWriter, request *http.Reques
 
 	err = s.messageService.CompleteMessage(messageID, mediaCreationErr)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 
 	message, err := s.messageService.GetMessage(userID, conversationID, messageID)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 	mediaMessage := message.(core.MediaMessage)
 
@@ -249,18 +214,17 @@ func (s *Webserver) uploadMedia(writer http.ResponseWriter, request *http.Reques
 		Method:    websocket.PostCommandMethod,
 	}, -1, conversationID)
 	s.socket.BroadcastToRoom(conversationID, mediaMessage, ctx)
+	return nil
 }
 
-func (s *Webserver) serveMediaMessageRessource(writer http.ResponseWriter, request *http.Request) {
+func (s *Webserver) serveMediaMessageRessource(writer http.ResponseWriter, request *http.Request) error {
 	userID := request.Context().Value("UserID").(int)
 	vars := mux.Vars(request)
 
 	conversationID, err := strconv.Atoi(vars["conversationID"])
 	if err != nil {
 		level.Error(s.logger).Log("Handler", "serveMediaMessageRessource", "err", err)
-		apiErrorPath := core.NewPathFormatError("Could not parse path component conversationID")
-		writeJSONError(writer, apiErrorPath, http.StatusBadRequest)
-		return
+		return core.NewPathFormatError("Could not parse path component conversationID")
 	}
 
 	fileName := vars["fileName"]
@@ -271,16 +235,14 @@ func (s *Webserver) serveMediaMessageRessource(writer http.ResponseWriter, reque
 		s.config.MediaFolder,
 	)
 	if err != nil {
-		if !checkForAPIError(err, writer) {
-			writeJSONError(writer, core.ErrUnknownError, http.StatusInternalServerError)
-		}
-		return
+		return err
 	}
 	defer file.Close()
 
 	writer.Header().Set("Cache-Control", "max-age=5552000")
 	writer.Header().Set("Content-Type", mediaObj.MIMEType)
 	http.ServeContent(writer, request, "", time.Time{}, file)
+	return nil
 }
 
 func min(x, y int64) int64 {
