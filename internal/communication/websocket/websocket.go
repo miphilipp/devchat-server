@@ -104,6 +104,7 @@ func (s *Server) removeClientFromRooms(client *client) {
 	s.rooms.RUnlock()
 }
 
+// StartWebsocket upgrades the connection to a websocket connection.
 func (s *Server) StartWebsocket(w http.ResponseWriter, r *http.Request, user int) error {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -128,7 +129,6 @@ func (s *Server) StartWebsocket(w http.ResponseWriter, r *http.Request, user int
 		}
 
 		for _, conversation := range conversationWithUser {
-			s.notifyOnlineState(conversation.ID, user, true)
 			s.JoinRoom(conversation.ID, c.id)
 		}
 
@@ -151,22 +151,6 @@ func (s *Server) StartWebsocket(w http.ResponseWriter, r *http.Request, user int
 	return nil
 }
 
-func (s *Server) notifyOnlineState(roomNumber int, userID int, state bool) {
-	notification := struct {
-		UserID   int  `json:"userId"`
-		NewState bool `json:"newState"`
-	}{
-		UserID:   userID,
-		NewState: state,
-	}
-
-	ctx := NewRequestContext(RESTCommand{
-		Ressource: "member/onlinestate",
-		Method:    PatchCommandMethod,
-	}, -1, -1)
-	s.BroadcastToRoom(roomNumber, notification, ctx)
-}
-
 func (s *Server) cleanupAfterClient(conn *websocket.Conn, client *client) {
 	isCompletlyDisconnected := client.breakConnection(conn)
 	if isCompletlyDisconnected {
@@ -174,13 +158,7 @@ func (s *Server) cleanupAfterClient(conn *websocket.Conn, client *client) {
 		delete(clients.m, client.id)
 		clients.Unlock()
 		s.removeClientFromRooms(client)
-		client.Disconnect <- 1000 // Code is not relevant
-
-		s.rooms.RLock()
-		for _, conversation := range s.rooms.m {
-			s.notifyOnlineState(conversation.ID, client.id, false)
-		}
-		s.rooms.RUnlock()
+		client.Disconnect <- 1000 // Code is not relevant here
 	}
 }
 
