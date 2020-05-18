@@ -130,7 +130,10 @@ func (r *userRepository) CreateRecoverID(emailAddress string) (uuid.UUID, error)
 	_, err := r.db.QueryOne(&updatedUUID,
 		`UPDATE public.user 
 		 SET recovery_uuid = uuid_generate_v4(), recovery_uuid_issue_date = current_timestamp at time zone 'utc'
-		 WHERE email = ? AND isdeleted = false
+		 WHERE 
+			email = ? AND 
+			isdeleted = false AND 
+			confirmation_uuid IS NULL
 		 RETURNING recovery_uuid;`, emailAddress)
 
 	if errors.Is(err, pg.ErrNoRows) {
@@ -231,7 +234,11 @@ func (r *userRepository) GetUsersForPrefix(prefix string, limit int) ([]core.Use
 	_, err := r.db.Query(&users,
 		`SELECT id, name 
 		FROM public.user 
-		WHERE lower(name) LIKE ?||'%' AND isdeleted = false LIMIT ?;`,
+		WHERE 
+			lower(name) LIKE ?||'%' AND 
+			isdeleted = false AND  
+			confirmation_uuid IS NULL
+		LIMIT ?;`,
 		strings.ToLower(prefix), limit)
 	if err != nil {
 		return nil, core.NewDataBaseError(err)
