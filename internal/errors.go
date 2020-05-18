@@ -1,14 +1,10 @@
 package core
 
-import (
-	"encoding/json"
-)
-
 var (
 	ErrFeatureDeactivated             = ApiError{1023, "This feature is currently not availiable"}
 	ErrAccountNotConfirmed            = ApiError{1022, "Account hasn't been confirmed yet"}
 	ErrAuthFailed                     = ApiError{1020, "User cannot be authenticated"}
-	ErrRequestLimitExceeed            = ApiError{1019, "The client exceeded the request limit."}
+	ErrRequestLimitExceeded           = ApiError{1019, "The client exceeded the request limit."}
 	ErrInvalidFileType                = ApiError{1018, "File type not allowed"}
 	ErrUnknownError                   = ApiError{1000, "An unexpected error occured."}
 	ErrDataBase                       = ApiError{1008, "Some unexepected error occured within the datatbase."}
@@ -19,7 +15,7 @@ var (
 	ErrNothingChanged                 = ApiError{1007, "This action had no effect"}
 	ErrLockedOut                      = ApiError{1005, "User Locked out"}
 	ErrNoResultFromDB                 = ApiError{1004, "No rows returned"}
-	ErrInvalidMessageType             = ApiError{10, "This message type is not implemented."}
+	ErrInvalidMessageType             = ApiError{1024, "This message type is not implemented."}
 	ErrUserDoesNotExist               = ApiError{1001, "No such user"}
 	ErrExpired                        = ApiError{1015, "Ressource expired"}
 	ErrInvalidToken                   = ApiError{1016, "Invalid token"}
@@ -36,12 +32,6 @@ type ApiError struct {
 }
 
 func (e ApiError) Error() string { return e.Message }
-
-// ToJSON converts an ApiError to JSON.
-func (e ApiError) ToJSON() []byte {
-	json, _ := json.Marshal(e)
-	return json
-}
 
 // RequestLimitExceededError represents an error when a client is making to many
 // requests to the server.
@@ -65,6 +55,7 @@ type DataBaseError struct {
 }
 
 // NewDataBaseError creates and returns a DataBaseError based on some error.
+// Returns nil if the input is nil.
 func NewDataBaseError(err error) error {
 	if err == nil {
 		return nil
@@ -110,7 +101,7 @@ func NewPathFormatError(message string) ApiError {
 // NewRequestLimitExceededError creates an new RequestLimitExceededError
 func NewRequestLimitExceededError(retryAfter, remaining, limit, resetAfter int) RequestLimitExceededError {
 	return RequestLimitExceededError{
-		Err: ErrRequestLimitExceeed,
+		Err: ErrRequestLimitExceeded,
 		RateLimit: map[string]int{
 			"retryAfter": retryAfter,
 			"remaining":  remaining,
