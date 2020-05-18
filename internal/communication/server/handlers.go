@@ -213,7 +213,7 @@ func (s *Webserver) SetupRestHandlers() {
 		if err != nil {
 			sendAPIError(err, writer)
 		}
-	}).Methods(http.MethodPatch)
+	}).Methods(http.MethodPut)
 
 	api.HandleFunc("/users", func(writer http.ResponseWriter, request *http.Request) {
 		err := s.getUsers(writer, request)
