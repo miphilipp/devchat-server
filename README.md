@@ -4,14 +4,14 @@ Der DevChat-Server nimmt Anfragen über eine REST-Schnittstelle, sowie über Web
 
 ## Einrichtung
 
-```bash
+```sh
 cd cmd/server
 go build
 ```
 
 ### Docker (docker-compose)
 
-```bash
+```sh
 mkdir {Wunschpfad der DevChat-Daten}/data/assets
 cp {assets Pfad} ./data/assets
 
@@ -23,18 +23,23 @@ docker-compose up
 
 ```yaml
 server:
-    addr: # Lokale Serveradresse im Format host:port
+    localAddr: # Lokale Serveradresse im Format host:port
     indexFileName: # Dateiname der index.html (Nicht der vollständige Pfad)
-    assetsFolder: # Ordner in dem die öffentlich zugänglichen Dateien liegen.
 
     rootURL: # Die URL an welcher der Server von außen erreichbar ist.
+
+    assetsFolder: # Ordner in dem die öffentlich zugänglichen Dateien liegen.
+    mediaFolder: # Ordner in dem hochgeladene Dateien liegen
+    avatarFolder: # Ordner in dem die Profilbilder von Benutzern liegen.
 
     # Wenn eines dieser Felder leer ist, ist TLS deaktiviert.
     certFile:
     keyFile:
 
-    jwtSecret: # String
-    mediaJwtSecret: # String
+    jwtSecret: # 256-bit String
+
+    # Eine Liste an Unterseiten welchen die Index-Seite geliefert wird. (Für SPAs) (String array)
+    webpages:
   
 database:
     name: # Datenbankname
