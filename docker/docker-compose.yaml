@@ -2,13 +2,14 @@ version: '3.8'
 services:
     web:
         ports: 
-            - "80:8080"
+            - "8080:80"
         volumes:
             - "../config.yaml:/app/cmd/server/config.yaml"
             - "../data:/app/data"
         restart: always
         build: 
-            context: .
+            context: ..
+            dockerfile: ./docker/dockerfile
         depends_on: 
             - redis
             - db
