@@ -93,17 +93,17 @@ CREATE TABLE public.text_message (
 -- DROP TABLE public.media_message;
 CREATE TABLE public.media_message (
     text text,
-    id bigint PRIMARY KEY (id) REFERENCES public.message (id) MATCH SIMPLE ON ON DELETE CASCADE
-)
+    id bigint PRIMARY KEY REFERENCES public.message (id) MATCH SIMPLE ON DELETE CASCADE
+);
 
 -- DROP TABLE public.media_object;
 CREATE TABLE public.media_object (
-    id SERIAL PRIMARY KEY (id),
+    id SERIAL PRIMARY KEY,
     filetype character varying(40) NOT NULL,
     message bigint NOT NULL REFERENCES public.media_message (id) MATCH SIMPLE ON DELETE CASCADE,
     name character varying(80) NOT NULL,
     meta json
-)
+);
 
 CREATE OR REPLACE VIEW public.v_text_message AS
 SELECT m.id, t.text, m.sentdate, m.conversationid, m.userid, m.type, u.name as author
