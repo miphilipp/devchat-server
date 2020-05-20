@@ -1,29 +1,22 @@
 package mailing
 
 import (
-	"fmt"
-	//"time"
-	"net/smtp"
-
 	core "github.com/miphilipp/devchat-server/internal"
+	"gopkg.in/gomail.v2"
 )
 
 type mailingService struct {
-	auth        smtp.Auth
+	user        string
+	password    string
 	senderEmail string
 	server      string
 	port        uint16
 }
 
 func NewService(server string, port uint16, password, user, senderEmail string) core.MailingService {
-	auth := smtp.PlainAuth(
-		"",
-		user,
-		password,
-		server,
-	)
 	return &mailingService{
-		auth:        auth,
+		user:        user,
+		password:    password,
 		senderEmail: senderEmail,
 		port:        port,
 		server:      server,
@@ -31,21 +24,14 @@ func NewService(server string, port uint16, password, user, senderEmail string) 
 }
 
 func (m *mailingService) SendEmail(to, subject, body string) error {
+	msg := gomail.NewMessage()
+	msg.SetHeader("From", m.senderEmail)
+	msg.SetHeader("To", to)
+	msg.SetHeader("Subject", subject)
+	msg.SetBody("text/plain", body)
 
-	msg := fmt.Sprintf(
-		"To: %s\r\n"+
-			"Subject: %s\r\n"+
-			"\r\n"+
-			"%s\r\n", to, subject, body)
-
-	err := smtp.SendMail(
-		fmt.Sprintf("%s:%d", m.server, m.port),
-		m.auth,
-		m.senderEmail,
-		[]string{to},
-		[]byte(msg),
-	)
-	if err != nil {
+	d := gomail.NewDialer(m.server, int(m.port), m.user, m.password)
+	if err := d.DialAndSend(msg); err != nil {
 		return err
 	}
 
