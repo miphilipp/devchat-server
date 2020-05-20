@@ -2,7 +2,7 @@ FROM debian:buster-slim
 
 EXPOSE 80 443
 
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data && apt-get update && apt-get install -y ca-certificates && update-ca-certificates
 VOLUME [ "/app/data" ]
 
 WORKDIR /app/cmd/server
