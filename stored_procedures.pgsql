@@ -242,10 +242,10 @@ CREATE  or replace FUNCTION public.calculateUnreadMessages(IN v_conversationid i
     LANGUAGE 'plpgsql'
 AS $BODY$
 BEGIN
-SELECT count(*) FROM message_status
+RETURN(SELECT count(*) FROM message_status
 WHERE message_status.hasread = false and 
 	userid = v_userid and 
-	conversationid = v_conversationid;
+	conversationid = v_conversationid);
 END
 $BODY$;
 
