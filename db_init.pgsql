@@ -152,23 +152,6 @@ CREATE OR REPLACE VIEW public.v_invitation
      JOIN conversation c ON c.id = g.conversationid
   WHERE g.joined IS NULL;
 
-CREATE OR REPLACE VIEW public.v_conversation
- AS
- SELECT c.id,
-    c.title,
-    c.repourl,
-    s.unreadmessagescount,
-    g.userid
-   FROM group_association g
-     JOIN conversation c ON c.id = g.conversationid
-     LEFT JOIN ( SELECT count(*) AS unreadmessagescount,
-            message_status.conversationid,
-            message_status.userid
-           FROM message_status
-          WHERE message_status.hasread = false
-          GROUP BY message_status.conversationid, message_status.userid) s ON s.conversationid = c.id AND s.userid = g.userid
-  WHERE g.joined IS NOT NULL;
-
 CREATE OR REPLACE VIEW public.v_joined_member
  AS
  SELECT g.isadmin,
