@@ -139,7 +139,10 @@ func (s *Server) StartWebsocket(w http.ResponseWriter, r *http.Request, user int
 
 	conn.SetCloseHandler(func(code int, text string) error {
 		s.cleanupAfterClient(conn, c)
-		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+		conn.WriteMessage(
+			websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+		)
 		return nil
 	})
 
@@ -256,17 +259,17 @@ func registerEndpoints(server *Server) {
 		return server.Messaging.BroadcastUserIsTyping(clientID, frame.Source, server, ctx)
 	})
 
-	server.addEndpoint(RESTCommand{"livecoding", PatchCommandMethod}, true, func(ctx context.Context, clientID int, frame messageFrame) error {
+	server.addEndpoint(RESTCommand{"livesession/code", PatchCommandMethod}, true, func(ctx context.Context, clientID int, frame messageFrame) error {
 		_, err := server.Messaging.LiveEditMessage(clientID, frame.Source, *frame.Payload.(*json.RawMessage), server, ctx)
 		return err
 	})
 
-	server.addEndpoint(RESTCommand{"livesession/code/stop", NotifyCommandMethod}, true, func(ctx context.Context, clientID int, frame messageFrame) error {
+	server.addEndpoint(RESTCommand{"livesession/code", DeleteCommandMethod}, true, func(ctx context.Context, clientID int, frame messageFrame) error {
 		_, err := server.Messaging.ToggleLiveSession(clientID, frame.Source, false, *frame.Payload.(*json.RawMessage), server, ctx)
 		return err
 	})
 
-	server.addEndpoint(RESTCommand{"livesession/code/start", NotifyCommandMethod}, true, func(ctx context.Context, clientID int, frame messageFrame) error {
+	server.addEndpoint(RESTCommand{"livesession/code", PostCommandMethod}, true, func(ctx context.Context, clientID int, frame messageFrame) error {
 		_, err := server.Messaging.ToggleLiveSession(clientID, frame.Source, true, *frame.Payload.(*json.RawMessage), server, ctx)
 		return err
 	})
