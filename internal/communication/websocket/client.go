@@ -1,7 +1,6 @@
 package websocket
 
 import (
-	//"fmt"
 	"context"
 	"math/rand"
 	"sync"
