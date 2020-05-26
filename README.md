@@ -2,20 +2,14 @@
 
 Der DevChat-Server nimmt Anfragen über eine REST-Schnittstelle, sowie über Websocket an.
 
-## Einrichtung
+## Installation mit Docker (docker-compose)
 
 ```sh
-cd cmd/server
-go build
-```
-
-### Docker (docker-compose)
-
-```sh
-mkdir {Wunschpfad der DevChat-Daten}/data/assets
-cp {assets Pfad} ./data/assets
+mkdir [Wunschpfad der DevChat-Daten]/data/{assets,avatars,media}
+cp [assets Pfad] [Wunschpfad der DevChat-Daten]/data/assets
 
 # An dieser Stelle müssen enventuell noch Änderungen in config.yaml vorgenommen werden.
+cd ./docker
 docker-compose up
 ```
 
@@ -55,8 +49,22 @@ mailing:
     email: # Absender E-Mail Adresse
 
 inmemorydb:
-    addr: ""
-    password: ""
+    addr: # Netzwerkadresse - host:port
+    password: # String
+
+userService:
+    allowSignup: # Boolean
+
+    # Der Zeitraum für den ein Benutzer ausgesperrt wird.
+    # Beispiel "10h", Siehe https://golang.org/pkg/time/#ParseDuration
+    lockoutTimeout: # String
+
+    # Die Anzahl der erlaubten, ungültigen Anmeldeversuche.
+    allowedLoginAttempts: # Int
+
+    # Der Zeitraum für den ein Passwort-Zurücksetzen-Link gültig ist.
+    # Beispiel "40m", Siehe https://golang.org/pkg/time/#ParseDuration
+    passwordResetTimeout: # String
 ```
 
 ## Wichtigsten Abhänigkeiten
@@ -73,3 +81,4 @@ Alle weiteren Abhängigkeiten finden Sie in `go.mod`.
 - [go-diff - Go Port von google-diff-match-patch](github.com/sergi/go-diff)
 - [throttled - Rater limiter](github.com/throttled/throttled)
 - [yaml.v2 - Unterstützt YAML Parsing](gopkg.in/yaml.v2)
+- [gomail.v2 - Versenden von E-Mails](gopkg.in/gomail.v2)
