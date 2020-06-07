@@ -1,7 +1,6 @@
 package database
 
 import (
-	//"fmt"
 	"errors"
 
 	"github.com/go-pg/pg/v9"
@@ -18,7 +17,7 @@ func (r *conversationRepository) FindConversationsForUser(user int) ([]core.Conv
 			SELECT id, title, repourl, calculateunreadmessages(id, ?) as unreadMessagesCount
 			FROM conversation c
 			JOIN group_association g on c.id = g.conversationid
-			WHERE userid = ?;`, user, user)
+			WHERE userid = ? AND g.joined IS NOT NULL AND g.hasLeft = false;`, user, user)
 
 	return conversations, core.NewDataBaseError(err)
 }
