@@ -198,14 +198,14 @@ func (s *Server) receiveLoop(conn *websocket.Conn, c *client) {
 
 		err := conn.ReadJSON(&wrapper)
 		if err != nil {
-			closeMsg, ok := err.(*websocket.CloseError)
-			if !ok {
-				level.Error(s.logger).Log("err", err)
-			} else {
-				if closeMsg.Code == websocket.CloseAbnormalClosure {
-					s.cleanupAfterClient(conn, c)
-				}
+			if websocket.IsCloseError(err, websocket.CloseAbnormalClosure) {
+				level.Debug(s.logger).Log("err", err)
+				s.cleanupAfterClient(conn, c)
+			} else if websocket.IsUnexpectedCloseError(err, websocket.CloseAbnormalClosure) {
 				level.Info(s.logger).Log("message", "Connection has been closed by peer")
+			} else {
+				level.Error(s.logger).Log("err", err)
+				s.cleanupAfterClient(conn, c)
 			}
 			return
 		}
