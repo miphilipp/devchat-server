@@ -15,6 +15,12 @@
 # vendor/
 
 config.yaml
-assets
-avatars
-media
+assets/
+avatars/
+media/
+
+userctl
+!userctl/
+
+server
+!server/
